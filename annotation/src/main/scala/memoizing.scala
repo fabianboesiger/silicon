@@ -31,17 +31,29 @@ object memoizingMacro {
       case class $className (..$fields) extends ..$bases { ..$body }
     """ = classDecl
 
+    val fieldTypes = fields.map(_.tpt).toList
+    val fieldNames = fields.map(_.name).toList
+
     // Create output tree.
     val output = q"""
       class $className private (..$fields) extends ..$bases { ..$body }
 
       object ${TermName(className.toString)} extends ((Term, Term) => Term) {
+        import scala.collection.mutable.HashMap
+        var pool = new HashMap[(..${}), $className]
+
         def apply(..$fields) = {
-          new $className(..${fields.map(_.name).toList})
+          pool.get((..${fieldNames})) match {
+            case Some(term) => term
+            case None =>
+              val term = new $className(..${fieldNames})
+              pool.addOne(((..${fieldNames}), term))
+              term
+          }
         }
 
         def unapply(t: $className) = {
-          Some((..${fields.map(_.name).map(name => q"t.$name").toList}))
+          Some((..${fieldNames.map(name => q"t.$name").toList}))
         }
       }
     """

@@ -617,12 +617,14 @@ object Plus extends ((Term, Term) => Term) {
 }
 */
 
-class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
+@memoizing
+case class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
 
   override val op = "-"
 }
 
+/*
 object Minus extends ((Term, Term) => Term) {
   import predef.Zero
 
@@ -635,13 +637,16 @@ object Minus extends ((Term, Term) => Term) {
 
   def unapply(t: Minus) = Some((t.p0, t.p1))
 }
+*/
 
-class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
+@memoizing
+case class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
 
   override val op = "*"
 }
 
+/*
 object Times extends ((Term, Term) => Term) {
   import predef.{Zero, One}
 
@@ -656,6 +661,7 @@ object Times extends ((Term, Term) => Term) {
 
   def unapply(t: Times) = Some((t.p0, t.p1))
 }
+*/
 
 case class Div(p0: Term, p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] {
