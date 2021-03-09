@@ -597,14 +597,12 @@ sealed abstract class ArithmeticTerm extends Term {
 }
 
 @memoizing
-case class PlusTest(val p0: Term, val p1: Term)
-
-class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
+case class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
 
   override val op = "+"
 }
-
+/*
 object Plus extends ((Term, Term) => Term) {
   import predef.Zero
 
@@ -617,6 +615,7 @@ object Plus extends ((Term, Term) => Term) {
 
   def unapply(t: Plus) = Some((t.p0, t.p1))
 }
+*/
 
 class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {

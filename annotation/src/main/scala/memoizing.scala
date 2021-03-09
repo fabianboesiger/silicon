@@ -26,37 +26,28 @@ object memoizingMacro {
 
     println((classDecl, companionObj))
 
-    /*
-    // Get case class name and fields.
-    val (className, fields) = try {
-      val q"case class $className(..$fields) extends ..$bases { ..$body }" = classDecl
-      (className, fields)
-    } catch {
-      case e: MatchError => c.abort(c.enclosingPosition, "Annotation is only supported on case classes")
-    }
+    // Extract information from class declaration.
+    val q"""
+      case class $className (..$fields) extends ..$bases { ..$body }
+    """ = classDecl
 
-    println((className, fields))
-
-    val fieldData = fields.map(field => try {
-      //val q"val $fieldName: $fieldType = $fieldInit" = field
-      (field.name, field.tpt, field.rhs)
-    } catch {
-      case e: MatchError => c.abort(c.enclosingPosition, e.toString())
-    }).toList
-
-    println(fieldData)
-    */
-
-    val q"case class $className(..$fields) extends ..$bases { ..$body }" = classDecl
-
-    q"""
+    // Create output tree.
+    val output = q"""
       class $className private (..$fields) extends ..$bases { ..$body }
 
-      object ${TermName(className.toString)} extends ((Term, Term) => $className) {
+      object ${TermName(className.toString)} extends ((Term, Term) => Term) {
         def apply(..$fields) = {
           new $className(..${fields.map(_.name).toList})
         }
+
+        def unapply(t: $className) = {
+          Some((..${fields.map(_.name).map(name => q"t.$name").toList}))
+        }
       }
     """
+
+    println(output)
+
+    output
   }
 }
