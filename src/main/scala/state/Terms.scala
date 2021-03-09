@@ -13,6 +13,7 @@ import viper.silicon.common.collections.immutable.InsertionOrderedSet
 import viper.silicon.{Map, Stack, state, toMap}
 import viper.silicon.state.{Identifier, MagicWandChunk, MagicWandIdentifier, SortBasedIdentifier}
 import viper.silicon.verifier.Verifier
+import viper.silicon.annotation.memoizing
 
 sealed trait Node {
   def toString: String
@@ -594,6 +595,9 @@ object Quantification
 sealed abstract class ArithmeticTerm extends Term {
   val sort = sorts.Int
 }
+
+@memoizing
+case class PlusTest(val p0: Term, val p1: Term)
 
 class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
