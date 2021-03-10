@@ -4,7 +4,7 @@ import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox
 
-@compileTimeOnly("Could not expand macro")
+@compileTimeOnly("Could not expand macro.")
 class memoizing extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro memoizingMacro.impl
 }
@@ -14,15 +14,20 @@ object memoizingMacro {
     import c.universe._
     val inputs = annottees.map(_.tree).toList
 
-    // Get class declaration and companion objects if they exist.
+    // Get class declaration and companion object declaration if it exists.
     val (classDecl, companionDecl) = inputs match {
       case (head: ClassDef) :: Nil => (head, None)
       case (head: ClassDef) :: (tail: ModuleDef) :: Nil => (head, Some(tail))
-      case _ => c.abort(c.enclosingPosition, "Annotation is only supported on classes with optional companion object")
+      case _ => c.abort(c.enclosingPosition, "Annotation is only allowed on classes with optional companion object.")
     }
 
     // Extract information from class declaration.
-    val q"case class $className (..$fields) extends ..$bases { ..$body }" = classDecl
+    val (className, fields, bases, body) = try {
+      val q"case class $className (..$fields) extends ..$bases { ..$body }" = classDecl
+      (className, fields, bases, body)
+    } catch {
+      case _: MatchError => c.abort(c.enclosingPosition, "Could not parse class, is it a case class?")
+    }
 
     // Get definitions from companion object, if any.
     // They are later inserted into the newly generated companion object.
@@ -37,7 +42,7 @@ object memoizingMacro {
     val fieldTypes = fields.map(_.tpt).toList
     val fieldNames = fields.map(_.name).toList
 
-    // Create output tree.
+    // Create output from the extracted information.
     val output = q"""
       class $className private (..$fields) extends ..$bases { ..$body }
 

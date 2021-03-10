@@ -786,12 +786,14 @@ object And extends (Iterable[Term] => Term) {
   def unapply(e: And) = Some(e.ts)
 }
 
-class Implies(val p0: Term, val p1: Term) extends BooleanTerm
+@memoizing
+case class Implies(val p0: Term, val p1: Term) extends BooleanTerm
     with StructuralEqualityBinaryOp[Term] {
 
   override val op = "==>"
 }
 
+/*
 object Implies extends ((Term, Term) => Term) {
   @tailrec
   def apply(e0: Term, e1: Term): Term = (e0, e1) match {
@@ -805,13 +807,16 @@ object Implies extends ((Term, Term) => Term) {
 
   def unapply(e: Implies) = Some((e.p0, e.p1))
 }
+*/
 
-class Iff(val p0: Term, val p1: Term) extends BooleanTerm
+@memoizing
+case class Iff(val p0: Term, val p1: Term) extends BooleanTerm
     with StructuralEqualityBinaryOp[Term] {
 
   override val op = "<==>"
 }
 
+/*
 object Iff extends ((Term, Term) => Term) {
   def apply(e0: Term, e1: Term) = (e0, e1) match {
     case (True(), _) => e1
@@ -822,8 +827,10 @@ object Iff extends ((Term, Term) => Term) {
 
   def unapply(e: Iff) = Some((e.p0, e.p1))
 }
+*/
 
-class Ite(val t0: Term, val t1: Term, val t2: Term)
+@memoizing
+case class Ite(val t0: Term, val t1: Term, val t2: Term)
     extends Term with StructuralEquality {
 
   assert(t0.sort == sorts.Bool && t1.sort == t2.sort, /* @elidable */
@@ -834,6 +841,7 @@ class Ite(val t0: Term, val t1: Term, val t2: Term)
   override lazy val toString = s"($t0 ? $t1 : $t2)"
 }
 
+/*
 object Ite extends ((Term, Term, Term) => Term) {
   def apply(e0: Term, e1: Term, e2: Term) = (e0, e1, e2) match {
     case _ if e1 == e2 => e1
@@ -846,6 +854,7 @@ object Ite extends ((Term, Term, Term) => Term) {
 
   def unapply(e: Ite) = Some((e.t0, e.t1, e.t2))
 }
+*/
 
 /* Comparison expression terms */
 
@@ -880,10 +889,10 @@ object Equals extends ((Term, Term) => BooleanTerm) {
             case _ => /* Ok */
           }
 
-          new BuiltinEquals(e0, e1)
+          BuiltinEquals(e0, e1)
 
-        case _: sorts.Seq | _: sorts.Set | _: sorts.Multiset | _: sorts.Map => new CustomEquals(e0, e1)
-        case _ => new BuiltinEquals(e0, e1)
+        case _: sorts.Seq | _: sorts.Set | _: sorts.Multiset | _: sorts.Map => CustomEquals(e0, e1)
+        case _ => BuiltinEquals(e0, e1)
       }
   }
 
@@ -891,9 +900,11 @@ object Equals extends ((Term, Term) => BooleanTerm) {
 }
 
 /* Represents built-in equality, e.g., '=' in SMT-LIB */
-class BuiltinEquals private[terms] (val p0: Term, val p1: Term) extends Equals
+@memoizing
+case class BuiltinEquals (val p0: Term, val p1: Term) extends Equals
     with StructuralEqualityBinaryOp[Term]
 
+/*
 object BuiltinEquals extends ((Term, Term) => BooleanTerm) {
   def apply(t1: Term, t2: Term) = (t1, t2) match {
     case (p0: PermLiteral, p1: PermLiteral) => if (p0.literal == p1.literal) True() else False()
@@ -902,20 +913,25 @@ object BuiltinEquals extends ((Term, Term) => BooleanTerm) {
 
   def unapply(e: BuiltinEquals) = Some((e.p0, e.p1))
 }
+*/
 
 /* Custom equality that (potentially) needs to be axiomatised. */
-class CustomEquals private[terms] (val p0: Term, val p1: Term) extends Equals
+@memoizing
+case class CustomEquals (val p0: Term, val p1: Term) extends Equals
     with StructuralEqualityBinaryOp[Term] {
 
   override val op = "==="
 }
 
+/*
 object CustomEquals extends ((Term, Term) => BooleanTerm) {
   def apply(t1: Term, t2: Term) = new CustomEquals(t1, t2)
   def unapply(e: CustomEquals) = Some((e.p0, e.p1))
 }
+*/
 
-class Less(val p0: Term, val p1: Term) extends ComparisonTerm
+@memoizing
+case class Less(val p0: Term, val p1: Term) extends ComparisonTerm
     with StructuralEqualityBinaryOp[Term] {
 
   assert(p0.sort == p1.sort,
@@ -924,6 +940,7 @@ class Less(val p0: Term, val p1: Term) extends ComparisonTerm
   override val op = "<"
 }
 
+/*
 object Less extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
   def apply(e0: Term, e1: Term) = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 < n1) True() else False()
@@ -933,13 +950,16 @@ object Less extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term)
 
   def unapply(e: Less) = Some((e.p0, e.p1))
 }
+*/
 
-class AtMost(val p0: Term, val p1: Term) extends ComparisonTerm
+@memoizing
+case class AtMost(val p0: Term, val p1: Term) extends ComparisonTerm
     with StructuralEqualityBinaryOp[Term] {
 
   override val op = "<="
 }
 
+/*
 object AtMost extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
   def apply(e0: Term, e1: Term) = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 <= n1) True() else False()
@@ -949,13 +969,16 @@ object AtMost extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Ter
 
   def unapply(e: AtMost) = Some((e.p0, e.p1))
 }
+*/
 
-class Greater(val p0: Term, val p1: Term) extends ComparisonTerm
+@memoizing
+case class Greater(val p0: Term, val p1: Term) extends ComparisonTerm
     with StructuralEqualityBinaryOp[Term] {
 
   override val op = ">"
 }
 
+/*
 object Greater extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
   def apply(e0: Term, e1: Term) = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 > n1) True() else False()
@@ -965,13 +988,16 @@ object Greater extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Te
 
   def unapply(e: Greater) = Some((e.p0, e.p1))
 }
+*/
 
-class AtLeast(val p0: Term, val p1: Term) extends ComparisonTerm
+@memoizing
+case class AtLeast(val p0: Term, val p1: Term) extends ComparisonTerm
     with StructuralEqualityBinaryOp[Term] {
 
   override val op = ">="
 }
 
+/*
 object AtLeast extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
   def apply(e0: Term, e1: Term) = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 >= n1) True() else False()
@@ -981,6 +1007,7 @@ object AtLeast extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Te
 
   def unapply(e: AtLeast) = Some((e.p0, e.p1))
 }
+*/
 
 /*
   Helper class for permissions
