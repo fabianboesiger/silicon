@@ -14,22 +14,26 @@ object memoizingMacro {
     import c.universe._
     val inputs = annottees.map(_.tree).toList
 
-    println(inputs.map(_.getClass).toList)
-
     // Get class declaration and companion objects if they exist.
-    val (classDecl, companionObj) = inputs match {
-      case (head: ClassDef) :: Nil => (head, Nil)
-      case (head: ClassDef) :: (tail @ (_ :: _)) => (head, tail)
-      case _ => c.abort(c.enclosingPosition, "Annotation is only supported on case classes")
+    val (classDecl, companionDecl) = inputs match {
+      case (head: ClassDef) :: Nil => (head, None)
+      case (head: ClassDef) :: (tail: ModuleDef) :: Nil => (head, Some(tail))
+      case _ => c.abort(c.enclosingPosition, "Annotation is only supported on classes with optional companion object")
     }
 
-    println((classDecl, companionObj))
-
     // Extract information from class declaration.
-    val q"""
-      case class $className (..$fields) extends ..$bases { ..$body }
-    """ = classDecl
+    val q"case class $className (..$fields) extends ..$bases { ..$body }" = classDecl
 
+    // Get definitions from companion object, if any.
+    // They are later inserted into the newly generated companion object.
+    val companionDefns = companionDecl match {
+      case Some(companionDecl) =>
+        val q"object $companionName extends ..$companionBases { ..$companionBody }" = companionDecl
+        companionBody
+      case None => List(q"")
+    }
+
+    // Some helper values.
     val fieldTypes = fields.map(_.tpt).toList
     val fieldNames = fields.map(_.name).toList
 
@@ -41,24 +45,28 @@ object memoizingMacro {
         import scala.collection.mutable.HashMap
         var pool = new HashMap[(..${fieldTypes}), $className]
 
-        def apply(..$fields) = {
-          pool.get((..${fieldNames})) match {
-            case Some(term) => term
-            case None =>
-              val term = new $className(..${fieldNames})
-              pool.addOne(((..${fieldNames}), term))
-              term
+          def apply(..$fields) = {
+            pool.get((..${fieldNames})) match {
+              case Some(term) => term
+              case None =>
+                val term = new $className(..${fieldNames})
+                pool.addOne(((..${fieldNames}), term))
+                term
+            }
           }
-        }
 
         def unapply(t: $className) = {
           Some((..${fieldNames.map(name => q"t.$name").toList}))
         }
+        ..$companionDefns
       }
     """
 
-    println(output)
+    //println(output)
 
     output
   }
 }
+/*
+
+*/

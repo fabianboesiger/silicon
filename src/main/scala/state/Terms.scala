@@ -511,7 +511,8 @@ object Exists extends Quantifier {
   override lazy val toString = "QE"
 }
 
-class Quantification private[terms] (val q: Quantifier, /* TODO: Rename */
+@memoizing
+case class Quantification (val q: Quantifier, /* TODO: Rename */
                                      val vars: Seq[Var],
                                      val body: Term,
                                      val triggers: Seq[Trigger],
@@ -561,6 +562,7 @@ object Quantification
     apply(q, vars, tBody, triggers, name, false)
   }
 
+  /*
   def apply(q: Quantifier,
             vars: Seq[Var],
             tBody: Term,
@@ -588,6 +590,7 @@ object Quantification
 
     Some((q.q, q.vars, q.body, q.triggers, q.name, q.isGlobal))
   }
+  */
 }
 
 /* Arithmetic expression terms */
@@ -602,6 +605,7 @@ case class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
 
   override val op = "+"
 }
+
 /*
 object Plus extends ((Term, Term) => Term) {
   import predef.Zero
