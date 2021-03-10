@@ -9,7 +9,6 @@ class memoizing extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro memoizingMacro.impl
 }
 
-
 object memoizingMacro {
   def impl(c: whitebox.Context)(annottees: c.Expr[Any]*) = {
     import c.universe._
@@ -38,9 +37,9 @@ object memoizingMacro {
     val output = q"""
       class $className private (..$fields) extends ..$bases { ..$body }
 
-      object ${TermName(className.toString)} extends ((Term, Term) => Term) {
+      object ${TermName(className.toString)} extends ((..${fieldTypes}) => $className) {
         import scala.collection.mutable.HashMap
-        var pool = new HashMap[(..${}), $className]
+        var pool = new HashMap[(..${fieldTypes}), $className]
 
         def apply(..$fields) = {
           pool.get((..${fieldNames})) match {

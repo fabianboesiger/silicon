@@ -663,12 +663,14 @@ object Times extends ((Term, Term) => Term) {
 }
 */
 
+@memoizing
 case class Div(p0: Term, p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] {
 
   override val op = "/"
 }
 
+@memoizing
 case class Mod(p0: Term, p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] {
 
@@ -679,7 +681,8 @@ case class Mod(p0: Term, p1: Term) extends ArithmeticTerm
 
 sealed trait BooleanTerm extends Term { override val sort = sorts.Bool }
 
-class Not(val p: Term) extends BooleanTerm
+@memoizing
+case class Not(val p: Term) extends BooleanTerm
     with StructuralEqualityUnaryOp[Term] {
 
   override val op = "!"
@@ -690,6 +693,7 @@ class Not(val p: Term) extends BooleanTerm
   }
 }
 
+/*
 object Not extends (Term => Term) {
   def apply(e0: Term) = e0 match {
     case Not(e1) => e1
@@ -700,6 +704,7 @@ object Not extends (Term => Term) {
 
   def unapply(e: Not) = Some(e.p)
 }
+*/
 
 class Or(val ts: Seq[Term]) extends BooleanTerm
     with StructuralEquality {
