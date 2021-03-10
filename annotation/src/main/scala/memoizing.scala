@@ -24,6 +24,7 @@ object memoizingMacro {
     // Extract information from class declaration.
     val (className, fields, bases, body) = try {
       val q"case class $className (..$fields) extends ..$bases { ..$body }" = classDecl
+      // TODO: Assert that class implements Term trait.
       (className, fields, bases, body)
     } catch {
       case _: MatchError => c.abort(c.enclosingPosition, "Could not parse class, is it a case class?")
@@ -61,8 +62,15 @@ object memoizingMacro {
           }
 
         def unapply(t: $className) = {
-          Some((..${fieldNames.map(name => q"t.$name").toList}))
+          ${
+            // Turns out unapply on case classes without fields return true instead of an Option.
+            if (fields.isEmpty)
+              q"true"
+            else
+              q"Some((..${fieldNames.map(name => q"t.$name").toList}))"
+          }
         }
+
         ..$companionDefns
       }
     """

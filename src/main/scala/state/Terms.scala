@@ -423,6 +423,7 @@ case object Unit extends SnapshotTerm with Literal {
   override lazy val toString = "_"
 }
 
+@memoizing
 case class IntLiteral(n: BigInt) extends ArithmeticTerm with Literal {
   def +(m: Int) = IntLiteral(n + m)
   def -(m: Int) = IntLiteral(n - m)
@@ -431,6 +432,7 @@ case class IntLiteral(n: BigInt) extends ArithmeticTerm with Literal {
   override lazy val toString = n.toString()
 }
 
+@memoizing
 case class Null() extends Term with Literal {
   val sort = sorts.Ref
   override lazy val toString = "Null"
@@ -441,11 +443,13 @@ sealed trait BooleanLiteral extends BooleanTerm with Literal {
   override lazy val toString = value.toString
 }
 
+@memoizing
 case class True() extends BooleanLiteral {
   val value = true
   override lazy val toString = "True"
 }
 
+@memoizing
 case class False() extends BooleanLiteral {
   val value = false
   override lazy val toString = "False"
@@ -710,7 +714,8 @@ object Not extends (Term => Term) {
 }
 */
 
-class Or(val ts: Seq[Term]) extends BooleanTerm
+@memoizing
+case class Or(val ts: Seq[Term]) extends BooleanTerm
     with StructuralEquality {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
@@ -726,9 +731,13 @@ class Or(val ts: Seq[Term]) extends BooleanTerm
  *       that conflicts with using extractor objects to simplify terms,
  *       since extractor objects can't be type-parametrised.
  */
-object Or extends (Iterable[Term] => Term) {
-  def apply(ts: Term*) = createOr(ts)
-  def apply(ts: Iterable[Term]) = createOr(ts.toSeq)
+
+object Or {
+  // Workaround for overloaded methods whose type erasure are the same
+  // using DummyImplicit, see StackOverflow thread:
+  // https://stackoverflow.com/questions/41617429
+  def apply(ts: Term*)(implicit dummy: DummyImplicit): Or = apply(ts)
+  def apply(ts: Iterable[Term]): Or = apply(ts.toSeq)
 
   //  def apply(e0: Term, e1: Term) = (e0, e1) match {
   //    case (True(), _) | (_, True()) => True()
@@ -738,6 +747,7 @@ object Or extends (Iterable[Term] => Term) {
   //    case _ => new Or(e0, e1)
   //  }
 
+  /*
   @inline
   def createOr(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case Or(ts1) => ts1; case other => other :: Nil}
@@ -753,9 +763,11 @@ object Or extends (Iterable[Term] => Term) {
   }
 
   def unapply(e: Or) = Some(e.ts)
+  */
 }
 
-class And(val ts: Seq[Term]) extends BooleanTerm
+@memoizing
+case class And(val ts: Seq[Term]) extends BooleanTerm
     with StructuralEquality {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
@@ -765,10 +777,10 @@ class And(val ts: Seq[Term]) extends BooleanTerm
   override lazy val toString = ts.mkString(" && ")
 }
 
-object And extends (Iterable[Term] => Term) {
-  def apply(ts: Term*) = createAnd(ts)
-  def apply(ts: Iterable[Term]) = createAnd(ts.toSeq)
-
+object And {
+  def apply(ts: Term*)(implicit dummy: DummyImplicit): And = apply(ts)
+  def apply(ts: Iterable[Term]): And = apply(ts.toSeq)
+  /*
   @inline
   def createAnd(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case And(ts1) => ts1; case other => other :: Nil}
@@ -784,6 +796,7 @@ object And extends (Iterable[Term] => Term) {
   }
 
   def unapply(e: And) = Some(e.ts)
+  */
 }
 
 @memoizing
