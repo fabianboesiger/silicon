@@ -56,6 +56,7 @@ object memoizingMacro {
               case Some(term) => term
               case None =>
                 val term = new $className(..${fieldNames})
+                term.validate
                 pool.addOne(((..${fieldNames}), term))
                 term
             }

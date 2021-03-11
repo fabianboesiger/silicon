@@ -356,6 +356,8 @@ sealed trait Term extends Node {
       case other => Vector(other)
     }
   }
+
+  def validate = ()
 }
 
 trait UnaryOp[E] {
@@ -1348,6 +1350,7 @@ sealed trait SeqTerm extends Term {
   val sort: sorts.Seq
 }
 
+@memoizing
 case class SeqRanged(p0: Term, p1: Term) extends SeqTerm /* with BinaryOp[Term] */ {
   utils.assertSort(p0, "first operand", sorts.Int)
   utils.assertSort(p1, "second operand", sorts.Int)
@@ -1358,11 +1361,13 @@ case class SeqRanged(p0: Term, p1: Term) extends SeqTerm /* with BinaryOp[Term] 
   override lazy val toString = s"[$p0..$p1]"
 }
 
+@memoizing
 case class SeqNil(elementsSort: Sort) extends SeqTerm with Literal {
   val sort = sorts.Seq(elementsSort)
   override lazy val toString = "Nil"
 }
 
+@memoizing
 case class SeqSingleton(p: Term) extends SeqTerm /* with UnaryOp[Term] */ {
   val elementsSort = p.sort
   val sort = sorts.Seq(elementsSort)
@@ -1370,15 +1375,20 @@ case class SeqSingleton(p: Term) extends SeqTerm /* with UnaryOp[Term] */ {
   override lazy val toString = s"[$p]"
 }
 
-class SeqAppend(val p0: Term, val p1: Term) extends SeqTerm
+@memoizing
+case class SeqAppend(val p0: Term, val p1: Term) extends SeqTerm
     with StructuralEqualityBinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
   val sort = sorts.Seq(elementsSort)
 
   override val op = "++"
+
+  override def validate = utils.assertSameSorts[sorts.Seq](this.p0, this.p1)
 }
 
+// TODO: Find a way to add assertions to macro.
+/*
 object SeqAppend extends ((Term, Term) => SeqTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Seq](t0, t1)
@@ -1387,16 +1397,23 @@ object SeqAppend extends ((Term, Term) => SeqTerm) {
 
   def unapply(sa: SeqAppend) = Some((sa.p0, sa.p1))
 }
+*/
 
-class SeqDrop(val p0: Term, val p1: Term) extends SeqTerm
+@memoizing
+case class SeqDrop(val p0: Term, val p1: Term) extends SeqTerm
     with StructuralEqualityBinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
   val sort = sorts.Seq(elementsSort)
 
   override lazy val toString = p0.toString + "[" + p1.toString + ":]"
+
+  override def validate =
+    utils.assertSort(this.p0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
+    utils.assertSort(this.p1, "second operand", sorts.Int)
 }
 
+/*
 object SeqDrop extends ((Term, Term) => SeqTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSort(t0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
@@ -1406,16 +1423,23 @@ object SeqDrop extends ((Term, Term) => SeqTerm) {
 
   def unapply(sd: SeqDrop) = Some((sd.p0, sd.p1))
 }
+*/
 
-class SeqTake(val p0: Term, val p1: Term) extends SeqTerm
+@memoizing
+case class SeqTake(val p0: Term, val p1: Term) extends SeqTerm
     with StructuralEqualityBinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
   val sort = sorts.Seq(elementsSort)
 
   override lazy val toString = p0.toString + "[:" + p1.toString + "]"
+
+  override def validate =
+    utils.assertSort(this.p0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
+    utils.assertSort(this.p1, "second operand", sorts.Int)
 }
 
+/*
 object SeqTake extends ((Term, Term) => SeqTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSort(t0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
@@ -1425,14 +1449,20 @@ object SeqTake extends ((Term, Term) => SeqTerm) {
 
   def unapply(st: SeqTake) = Some((st.p0, st.p1))
 }
+*/
 
-class SeqLength(val p: Term) extends Term
+@memoizing
+case class SeqLength(val p: Term) extends Term
     with StructuralEqualityUnaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
+
+  override def validate =
+    utils.assertSort(this.p, "term", "Seq", _.isInstanceOf[sorts.Seq])
 }
 
+/*
 object SeqLength {
   def apply(t: Term) = {
     utils.assertSort(t, "term", "Seq", _.isInstanceOf[sorts.Seq])
@@ -1441,15 +1471,22 @@ object SeqLength {
 
   def unapply(sl: SeqLength) = Some(sl.p)
 }
+*/
 
-class SeqAt(val p0: Term, val p1: Term) extends Term
+@memoizing
+case class SeqAt(val p0: Term, val p1: Term) extends Term
     with StructuralEqualityBinaryOp[Term] {
 
   val sort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
 
   override lazy val toString = s"$p0[$p1]"
+
+  override def validate =
+    utils.assertSort(this.p0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
+    utils.assertSort(this.p1, "second operand", sorts.Int)
 }
 
+/*
 object SeqAt extends ((Term, Term) => Term) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSort(t0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
@@ -1459,13 +1496,20 @@ object SeqAt extends ((Term, Term) => Term) {
 
   def unapply(sa: SeqAt) = Some((sa.p0, sa.p1))
 }
+*/
 
-class SeqIn(val p0: Term, val p1: Term) extends BooleanTerm
+@memoizing
+case class SeqIn(val p0: Term, val p1: Term) extends BooleanTerm
     with StructuralEqualityBinaryOp[Term] {
 
   override lazy val toString = s"$p1 in $p0"
+
+  override def validate =
+    utils.assertSort(this.p0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
+    utils.assertSort(this.p1, "second operand", this.p0.sort.asInstanceOf[sorts.Seq].elementsSort)
 }
 
+/*
 object SeqIn extends ((Term, Term) => BooleanTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSort(t0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
@@ -1475,8 +1519,10 @@ object SeqIn extends ((Term, Term) => BooleanTerm) {
 
   def unapply(si: SeqIn) = Some((si.p0, si.p1))
 }
+*/
 
-class SeqUpdate(val t0: Term, val t1: Term, val t2: Term)
+@memoizing
+case class SeqUpdate(val t0: Term, val t1: Term, val t2: Term)
     extends SeqTerm
        with StructuralEquality {
 
@@ -1484,8 +1530,14 @@ class SeqUpdate(val t0: Term, val t1: Term, val t2: Term)
   val elementsSort = sort.elementsSort
   val equalityDefiningMembers = t0 :: t1 :: t2 :: Nil
   override lazy val toString = s"$t0[$t1] := $t2"
+
+  override def validate =
+    utils.assertSort(this.t0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
+    utils.assertSort(this.t1, "second operand", sorts.Int)
+    utils.assertSort(this.t2, "third operand", this.t0.sort.asInstanceOf[sorts.Seq].elementsSort)
 }
 
+/*
 object SeqUpdate extends ((Term, Term, Term) => SeqTerm) {
   def apply(t0: Term, t1: Term, t2: Term) = {
     utils.assertSort(t0, "first operand", "Seq", _.isInstanceOf[sorts.Seq])
@@ -1497,6 +1549,7 @@ object SeqUpdate extends ((Term, Term, Term) => SeqTerm) {
 
   def unapply(su: SeqUpdate) = Some((su.t0, su.t1, su.t2))
 }
+*/
 
 /* Sets */
 
