@@ -1925,18 +1925,25 @@ sealed trait MapTerm extends Term {
   val sort: sorts.Map
 }
 
+@memoizing
 case class EmptyMap(keySort: Sort, valueSort: Sort) extends MapTerm with Literal {
   val sort = sorts.Map(keySort, valueSort)
   override lazy val toString = "Ø"
 }
 
-class MapLookup(base: Term, key: Term) extends Term with StructuralEqualityBinaryOp[Term] {
+@memoizing
+case class MapLookup(base: Term, key: Term) extends Term with StructuralEqualityBinaryOp[Term] {
   val sort: Sort = p0.sort.asInstanceOf[sorts.Map].valueSort
   override def p0: Term = base
   override def p1: Term = key
   override lazy val toString = s"$p0[$p1]"
+
+  override def validate =
+    utils.assertSort(this.base, "first operand", "Map", _.isInstanceOf[sorts.Map])
+    utils.assertSort(this.key, "second operand", this.base.sort.asInstanceOf[sorts.Map].keySort)
 }
 
+/*
 object MapLookup extends ((Term, Term) => Term) {
   def apply(t0: Term, t1: Term) : Term = {
     utils.assertSort(t0, "first operand", "Map", _.isInstanceOf[sorts.Map])
@@ -1946,12 +1953,17 @@ object MapLookup extends ((Term, Term) => Term) {
 
   def unapply(ml: MapLookup) = Some((ml.p0, ml.p1))
 }
+*/
 
-class MapCardinality(val p: Term) extends Term with StructuralEqualityUnaryOp[Term] {
+@memoizing
+case class MapCardinality(val p: Term) extends Term with StructuralEqualityUnaryOp[Term] {
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
+
+  override def validate = utils.assertSort(this.p, "term", "Map", _.isInstanceOf[sorts.Map])
 }
 
+/*
 object MapCardinality extends (Term => MapCardinality) {
   def apply(t: Term) : MapCardinality = {
     utils.assertSort(t, "term", "Map", _.isInstanceOf[sorts.Map])
@@ -1960,14 +1972,22 @@ object MapCardinality extends (Term => MapCardinality) {
 
   def unapply(mc: MapCardinality) = Some(mc.p)
 }
+*/
 
-class MapUpdate(val base: Term, val key: Term, val value: Term) extends MapTerm with StructuralEquality {
+@memoizing
+case class MapUpdate(val base: Term, val key: Term, val value: Term) extends MapTerm with StructuralEquality {
   override val sort: sorts.Map = base.sort.asInstanceOf[sorts.Map]
   override val keySort: Sort = sort.keySort
   override val valueSort: Sort = sort.valueSort
   override val equalityDefiningMembers: Seq[Any] = Seq(base, key, value)
+
+  override def validate =
+    utils.assertSort(base, "first operand", "Map", _.isInstanceOf[sorts.Map])
+    utils.assertSort(key, "second operand", base.sort.asInstanceOf[sorts.Map].keySort)
+    utils.assertSort(value, "third operand", base.sort.asInstanceOf[sorts.Map].valueSort)
 }
 
+/*
 object MapUpdate extends ((Term, Term, Term) => MapTerm) {
   def apply(t0: Term, t1: Term, t2: Term) : MapUpdate = {
     utils.assertSort(t0, "first operand", "Map", _.isInstanceOf[sorts.Map])
@@ -1978,13 +1998,19 @@ object MapUpdate extends ((Term, Term, Term) => MapTerm) {
 
   def unapply(mu: MapUpdate) = Some((mu, mu.key, mu.value))
 }
+*/
 
-class MapDomain(val p: Term) extends SetTerm with StructuralEqualityUnaryOp[Term] {
+@memoizing
+case class MapDomain(val p: Term) extends SetTerm with StructuralEqualityUnaryOp[Term] {
   override val elementsSort: Sort = p.sort.asInstanceOf[sorts.Map].keySort
   override val sort: sorts.Set = sorts.Set(elementsSort)
   override lazy val toString = s"domain($p)"
+
+  override def validate =
+    utils.assertSort(this.p, "term", "Map", _.isInstanceOf[sorts.Map])
 }
 
+/*
 object MapDomain extends (Term => SetTerm) {
   def apply(t0: Term) : SetTerm = {
     utils.assertSort(t0, "term", "Map", _.isInstanceOf[sorts.Map])
@@ -1993,13 +2019,19 @@ object MapDomain extends (Term => SetTerm) {
 
   def unapply(md : MapDomain) = Some(md.p)
 }
+*/
 
-class MapRange(val p: Term) extends SetTerm with StructuralEqualityUnaryOp[Term] {
+@memoizing
+case class MapRange(val p: Term) extends SetTerm with StructuralEqualityUnaryOp[Term] {
   override val elementsSort: Sort = p.sort.asInstanceOf[sorts.Map].valueSort
   override val sort: sorts.Set = sorts.Set(elementsSort)
   override lazy val toString = s"range($p)"
+
+  override def validate =
+    utils.assertSort(this.p, "term", "Map", _.isInstanceOf[sorts.Map])
 }
 
+/*
 object MapRange extends (Term => SetTerm) {
   def apply(t0: Term) : SetTerm = {
     utils.assertSort(t0, "term", "Map", _.isInstanceOf[sorts.Map])
@@ -2008,6 +2040,7 @@ object MapRange extends (Term => SetTerm) {
 
   def unapply(mr : MapRange) = Some(mr.p)
 }
+*/
 
 /* Snapshots */
 
