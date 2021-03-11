@@ -716,9 +716,8 @@ object Not extends (Term => Term) {
 }
 */
 
-@memoizing
-case class Or(val ts: Seq[Term]) extends BooleanTerm
-    with StructuralEquality {
+class Or(val ts: Seq[Term]) extends BooleanTerm
+  with StructuralEquality {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
 
@@ -733,13 +732,9 @@ case class Or(val ts: Seq[Term]) extends BooleanTerm
  *       that conflicts with using extractor objects to simplify terms,
  *       since extractor objects can't be type-parametrised.
  */
-
-object Or {
-  // Workaround for overloaded methods whose type erasure are the same
-  // using DummyImplicit, see StackOverflow thread:
-  // https://stackoverflow.com/questions/41617429
-  def apply(ts: Term*)(implicit dummy: DummyImplicit): Or = apply(ts)
-  def apply(ts: Iterable[Term]): Or = apply(ts.toSeq)
+object Or extends (Iterable[Term] => Term) {
+  def apply(ts: Term*) = createOr(ts)
+  def apply(ts: Iterable[Term]) = createOr(ts.toSeq)
 
   //  def apply(e0: Term, e1: Term) = (e0, e1) match {
   //    case (True(), _) | (_, True()) => True()
@@ -749,7 +744,6 @@ object Or {
   //    case _ => new Or(e0, e1)
   //  }
 
-  /*
   @inline
   def createOr(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case Or(ts1) => ts1; case other => other :: Nil}
@@ -765,12 +759,10 @@ object Or {
   }
 
   def unapply(e: Or) = Some(e.ts)
-  */
 }
 
-@memoizing
-case class And(val ts: Seq[Term]) extends BooleanTerm
-    with StructuralEquality {
+class And(val ts: Seq[Term]) extends BooleanTerm
+  with StructuralEquality {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
 
@@ -779,10 +771,10 @@ case class And(val ts: Seq[Term]) extends BooleanTerm
   override lazy val toString = ts.mkString(" && ")
 }
 
-object And {
-  def apply(ts: Term*)(implicit dummy: DummyImplicit): And = apply(ts)
-  def apply(ts: Iterable[Term]): And = apply(ts.toSeq)
-  /*
+object And extends (Iterable[Term] => Term) {
+  def apply(ts: Term*) = createAnd(ts)
+  def apply(ts: Iterable[Term]) = createAnd(ts.toSeq)
+
   @inline
   def createAnd(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case And(ts1) => ts1; case other => other :: Nil}
@@ -798,8 +790,8 @@ object And {
   }
 
   def unapply(e: And) = Some(e.ts)
-  */
 }
+
 
 @memoizing
 case class Implies(val p0: Term, val p1: Term) extends BooleanTerm
@@ -2321,8 +2313,7 @@ object PsfTop extends (String => Identifier) {
  * because they are optimised away if wrappee `t` already has sort `to`.
  */
 
-@memoizing
-case class SortWrapper(val t: Term, val to: Sort)
+class SortWrapper(val t: Term, val to: Sort)
     extends Term
        with StructuralEquality {
 
@@ -2335,7 +2326,6 @@ case class SortWrapper(val t: Term, val to: Sort)
   override val sort = to
 }
 
-/*
 object SortWrapper {
   def apply(t: Term, to: Sort) = t match {
     case _ if t.sort == to => t
@@ -2345,7 +2335,6 @@ object SortWrapper {
 
   def unapply(sw: SortWrapper) = Some((sw.t, sw.to))
 }
-*/
 
 /* Other terms */
 
