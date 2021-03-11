@@ -2320,7 +2320,9 @@ object PsfTop extends (String => Identifier) {
 /* Note: Sort wrappers should probably not be used as (outermost) triggers
  * because they are optimised away if wrappee `t` already has sort `to`.
  */
-class SortWrapper(val t: Term, val to: Sort)
+
+@memoizing
+case class SortWrapper(val t: Term, val to: Sort)
     extends Term
        with StructuralEquality {
 
@@ -2333,6 +2335,7 @@ class SortWrapper(val t: Term, val to: Sort)
   override val sort = to
 }
 
+/*
 object SortWrapper {
   def apply(t: Term, to: Sort) = t match {
     case _ if t.sort == to => t
@@ -2342,16 +2345,19 @@ object SortWrapper {
 
   def unapply(sw: SortWrapper) = Some((sw.t, sw.to))
 }
+*/
 
 /* Other terms */
 
-class Distinct(val ts: Set[Symbol]) extends BooleanTerm with StructuralEquality {
+@memoizing
+case class Distinct(val ts: Set[Symbol]) extends BooleanTerm with StructuralEquality {
   assert(ts.nonEmpty, "Distinct requires at least one term")
 
   val equalityDefiningMembers = ts :: Nil
   override lazy val toString = s"Distinct($ts)"
 }
 
+/*
 object Distinct extends (Set[Symbol] => Term) {
   def apply(ts: Set[Symbol]): Term =
     if (ts.nonEmpty) new Distinct(ts)
@@ -2359,8 +2365,10 @@ object Distinct extends (Set[Symbol] => Term) {
 
   def unapply(d: Distinct) = Some(d.ts)
 }
+*/
 
-class Let(val bindings: Map[Var, Term], val body: Term) extends Term with StructuralEquality {
+@memoizing
+case class Let(val bindings: Map[Var, Term], val body: Term) extends Term with StructuralEquality {
   assert(bindings.nonEmpty, "Let needs to bind at least one variable")
 
   val sort = body.sort
@@ -2369,6 +2377,12 @@ class Let(val bindings: Map[Var, Term], val body: Term) extends Term with Struct
   override lazy val toString = s"let ${bindings.map(p => s"${p._1} = ${p._2}")} in $body"
 }
 
+object Let {
+  def apply(v: Var, t: Term, body: Term): Term = apply(Map(v -> t), body)
+  def apply(vs: Seq[Var], ts: Seq[Term], body: Term): Term = apply(toMap(vs zip ts), body)
+}
+
+/*
 object Let extends ((Map[Var, Term], Term) => Term) {
   def apply(v: Var, t: Term, body: Term): Term = apply(Map(v -> t), body)
   def apply(vs: Seq[Var], ts: Seq[Term], body: Term): Term = apply(toMap(vs zip ts), body)
@@ -2380,6 +2394,7 @@ object Let extends ((Map[Var, Term], Term) => Term) {
 
   def unapply(l: Let) = Some((l.bindings, l.body))
 }
+*/
 
 /* Predefined terms */
 
