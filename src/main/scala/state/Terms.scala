@@ -1565,11 +1565,13 @@ sealed trait BinarySetOp extends SetTerm
   val sort = sorts.Set(elementsSort)
 }
 
+@memoizing
 case class EmptySet(elementsSort: Sort) extends SetTerm with Literal {
   val sort = sorts.Set(elementsSort)
   override lazy val toString = "Ø"
 }
 
+@memoizing
 case class SingletonSet(p: Term) extends SetTerm /* with UnaryOp[Term] */ {
   val elementsSort = p.sort
   val sort = sorts.Set(elementsSort)
@@ -1577,15 +1579,21 @@ case class SingletonSet(p: Term) extends SetTerm /* with UnaryOp[Term] */ {
   override lazy val toString = s"{$p}"
 }
 
-class SetAdd(val p0: Term, val p1: Term) extends SetTerm
+@memoizing
+case class SetAdd(val p0: Term, val p1: Term) extends SetTerm
     with StructuralEqualityBinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Set].elementsSort
   val sort = sorts.Set(elementsSort)
 
   override val op = "+"
+
+  override def validate =
+    utils.assertSort(this.p0, "first operand", "Set", _.isInstanceOf[sorts.Set])
+    utils.assertSort(this.p1, "second operand", this.p0.sort.asInstanceOf[sorts.Set].elementsSort)
 }
 
+/*
 object SetAdd extends ((Term, Term) => SetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSort(t0, "first operand", "Set", _.isInstanceOf[sorts.Set])
@@ -1596,11 +1604,16 @@ object SetAdd extends ((Term, Term) => SetTerm) {
 
   def unapply(sa: SetAdd) = Some((sa.p0, sa.p1))
 }
+*/
 
-class SetUnion(val p0: Term, val p1: Term) extends BinarySetOp {
+@memoizing
+case class SetUnion(val p0: Term, val p1: Term) extends BinarySetOp {
   override val op = "∪"
+
+  override def validate = utils.assertSameSorts[sorts.Set](this.p0, this.p1)
 }
 
+/*
 object SetUnion extends ((Term, Term) => SetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Set](t0, t1)
@@ -1609,11 +1622,16 @@ object SetUnion extends ((Term, Term) => SetTerm) {
 
   def unapply(su: SetUnion) = Some((su.p0, su.p1))
 }
+*/
 
-class SetIntersection(val p0: Term, val p1: Term) extends BinarySetOp {
+@memoizing
+case class SetIntersection(val p0: Term, val p1: Term) extends BinarySetOp {
   override val op = "∩"
+
+  override def validate = utils.assertSameSorts[sorts.Set](this.p0, this.p1)
 }
 
+/*
 object SetIntersection extends ((Term, Term) => SetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Set](t0, t1)
@@ -1622,12 +1640,17 @@ object SetIntersection extends ((Term, Term) => SetTerm) {
 
   def unapply(si: SetIntersection) = Some((si.p0, si.p1))
 }
+*/
 
-class SetSubset(val p0: Term, val p1: Term) extends BooleanTerm 
+@memoizing
+case class SetSubset(val p0: Term, val p1: Term) extends BooleanTerm
     with StructuralEqualityBinaryOp[Term] {
   override val op = "⊂"
+
+  override def validate = utils.assertSameSorts[sorts.Set](this.p0, this.p1)
 }
 
+/*
 object SetSubset extends ((Term, Term) => BooleanTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Set](t0, t1)
@@ -1636,12 +1659,17 @@ object SetSubset extends ((Term, Term) => BooleanTerm) {
 
   def unapply(ss: SetSubset) = Some((ss.p0, ss.p1))
 }
+*/
 
-class SetDisjoint(val p0: Term, val p1: Term) extends BooleanTerm
+@memoizing
+case class SetDisjoint(val p0: Term, val p1: Term) extends BooleanTerm
     with StructuralEqualityBinaryOp[Term] {
   override val op = "disj"
+
+  override def validate = utils.assertSameSorts[sorts.Set](this.p0, this.p1)
 }
 
+/*
 object SetDisjoint extends ((Term, Term) => BooleanTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Set](t0, t1)
@@ -1650,11 +1678,16 @@ object SetDisjoint extends ((Term, Term) => BooleanTerm) {
 
   def unapply(sd: SetDisjoint) = Some((sd.p0, sd.p1))
 }
+*/
 
-class SetDifference(val p0: Term, val p1: Term) extends BinarySetOp {
+@memoizing
+case class SetDifference(val p0: Term, val p1: Term) extends BinarySetOp {
   override val op = "\\"
+
+  override def validate = utils.assertSameSorts[sorts.Set](this.p0, this.p1)
 }
 
+/*
 object SetDifference extends ((Term, Term) => SetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Set](t0, t1)
@@ -1663,13 +1696,20 @@ object SetDifference extends ((Term, Term) => SetTerm) {
 
   def unapply(sd: SetDifference) = Some((sd.p0, sd.p1))
 }
+*/
 
-class SetIn(val p0: Term, val p1: Term) extends BooleanTerm
+@memoizing
+case class SetIn(val p0: Term, val p1: Term) extends BooleanTerm
     with StructuralEqualityBinaryOp[Term] {
 
   override val op = "in"
+
+  override def validate =
+    utils.assertSort(this.p1, "second operand", "Set", _.isInstanceOf[sorts.Set])
+    utils.assertSort(this.p0, "first operand", this.p1.sort.asInstanceOf[sorts.Set].elementsSort)
 }
 
+/*
 object SetIn extends ((Term, Term) => BooleanTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSort(t1, "second operand", "Set", _.isInstanceOf[sorts.Set])
@@ -1680,14 +1720,19 @@ object SetIn extends ((Term, Term) => BooleanTerm) {
 
   def unapply(si: SetIn) = Some((si.p0, si.p1))
 }
+*/
 
-class SetCardinality(val p: Term) extends Term
+@memoizing
+case class SetCardinality(val p: Term) extends Term
     with StructuralEqualityUnaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
+
+  override def validate = utils.assertSort(this.p, "term", "Set", _.isInstanceOf[sorts.Set])
 }
 
+/*
 object SetCardinality extends (Term => SetCardinality) {
   def apply(t: Term) = {
     utils.assertSort(t, "term", "Set", _.isInstanceOf[sorts.Set])
@@ -1696,6 +1741,7 @@ object SetCardinality extends (Term => SetCardinality) {
 
   def unapply(sc: SetCardinality) = Some(sc.p)
 }
+*/
 
 /* Multisets */
 
