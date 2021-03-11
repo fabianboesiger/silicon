@@ -2108,6 +2108,7 @@ object Second extends (Term => Term) {
 
 /* Quantified permissions */
 
+@memoizing
 case class Lookup(field: String, fvf: Term, at: Term) extends Term {
   utils.assertSort(fvf, "field value function", "FieldValueFunction", _.isInstanceOf[sorts.FieldValueFunction])
   utils.assertSort(at, "receiver", sorts.Ref)
@@ -2115,6 +2116,7 @@ case class Lookup(field: String, fvf: Term, at: Term) extends Term {
   val sort = fvf.sort.asInstanceOf[sorts.FieldValueFunction].codomainSort
 }
 
+@memoizing
 case class PermLookup(field: String, pm: Term, at: Term) extends Term {
   utils.assertSort(pm, "field perm function", "FieldPermFunction", _.isInstanceOf[sorts.FieldPermFunction])
   utils.assertSort(at, "receiver", sorts.Ref)
@@ -2122,6 +2124,7 @@ case class PermLookup(field: String, pm: Term, at: Term) extends Term {
   val sort = sorts.Perm
 }
 
+@memoizing
 case class Domain(field: String, fvf: Term) extends SetTerm /*with PossibleTrigger*/ {
   utils.assertSort(fvf, "field value function", "FieldValueFunction", _.isInstanceOf[sorts.FieldValueFunction])
 
@@ -2129,6 +2132,7 @@ case class Domain(field: String, fvf: Term) extends SetTerm /*with PossibleTrigg
   val sort = sorts.Set(elementsSort)
 }
 
+@memoizing
 case class FieldTrigger(field: String, fvf: Term, at: Term) extends Term {
   utils.assertSort(fvf, "field value function", "FieldValueFunction", _.isInstanceOf[sorts.FieldValueFunction])
   utils.assertSort(at, "receiver", sorts.Ref)
@@ -2138,24 +2142,28 @@ case class FieldTrigger(field: String, fvf: Term, at: Term) extends Term {
 
 /* Quantified predicates */
 
+@memoizing
 case class PredicateLookup(predname: String, psf: Term, args: Seq[Term]) extends Term {
   utils.assertSort(psf, "predicate snap function", "PredicateSnapFunction", _.isInstanceOf[sorts.PredicateSnapFunction])
 
   val sort = psf.sort.asInstanceOf[sorts.PredicateSnapFunction].codomainSort
 }
 
+@memoizing
 case class PredicatePermLookup(predname: String, pm: Term, args: Seq[Term]) extends Term {
   utils.assertSort(pm, "predicate perm function", "PredicatePermFunction", _.isInstanceOf[sorts.PredicatePermFunction])
 
   val sort = sorts.Perm
 }
 
+@memoizing
 case class PredicateDomain(predname: String, psf: Term) extends SetTerm /*with PossibleTrigger*/ {
   utils.assertSort(psf, "predicate snap function", "PredicateSnapFunction", _.isInstanceOf[sorts.PredicateSnapFunction])
   val elementsSort = sorts.Snap
   val sort = sorts.Set(elementsSort)
 }
 
+@memoizing
 case class PredicateTrigger(predname: String, psf: Term, args: Seq[Term]) extends Term {
   utils.assertSort(psf, "predicate snap function", "PredicateSnapFunction", _.isInstanceOf[sorts.PredicateSnapFunction])
 
