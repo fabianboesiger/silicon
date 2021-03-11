@@ -2173,6 +2173,7 @@ case class PredicateTrigger(predname: String, psf: Term, args: Seq[Term]) extend
 /* Magic wands */
 
 // TODO: Avoid extending Combine to make constructor private.
+@memoizing
 case class MagicWandSnapshot(abstractLhs: Term, rhsSnapshot: Term) extends Combine(abstractLhs, rhsSnapshot) {
   utils.assertSort(abstractLhs, "abstract lhs", sorts.Snap)
   utils.assertSort(rhsSnapshot, "rhs", sorts.Snap)
@@ -2200,6 +2201,7 @@ object MagicWandSnapshot {
   }
 }
 
+@memoizing
 case class MagicWandChunkTerm(chunk: MagicWandChunk) extends Term {
   override val sort = sorts.Unit /* TODO: Does this make sense? */
   override lazy val toString = s"wand@${chunk.id.ghostFreeWand.pos}}"
