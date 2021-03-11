@@ -42,12 +42,13 @@ object memoizingMacro {
     // Some helper values.
     val fieldTypes = fields.map(_.tpt).toList
     val fieldNames = fields.map(_.name).toList
+    val termName = TermName(className.toString)
 
     // Create output from the extracted information.
     val output = q"""
-      class $className private (..$fields) extends ..$bases { ..$body }
+      class $className (..$fields) extends ..$bases { ..$body }
 
-      object ${TermName(className.toString)} extends ((..${fieldTypes}) => $className) {
+      object ${termName} extends ((..${fieldTypes}) => $className) {
         import scala.collection.mutable.HashMap
         var pool = new HashMap[(..${fieldTypes}), $className]
 
@@ -55,7 +56,15 @@ object memoizingMacro {
             pool.get((..${fieldNames})) match {
               case Some(term) => term
               case None =>
-                val term = new $className(..${fieldNames})
+                val term = ${
+                  // Workaround for case class Combine, when a instance cannot simply be created
+                  // by calling the constructor with the arguments of apply.
+                  // TODO: Find a better solution.
+                  if (companionDefns.map((defn) => try { Some(defn.asInstanceOf[DefDef]) } catch { case _: ClassCastException => None }).filter(!_.isEmpty).map(_.get.name).contains("create"))
+                    q"${termName}.create(..${fieldNames})"
+                  else
+                    q"new $className(..${fieldNames})"
+                }
                 term.validate
                 pool.addOne(((..${fieldNames}), term))
                 term

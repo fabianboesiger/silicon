@@ -2046,7 +2046,8 @@ object MapRange extends (Term => SetTerm) {
 
 sealed trait SnapshotTerm extends Term { val sort = sorts.Snap }
 
-class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
+@memoizing
+case class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
     with StructuralEqualityBinaryOp[Term] {
 
   utils.assertSort(p0, "first operand", sorts.Snap)
@@ -2055,19 +2056,27 @@ class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
   override lazy val toString = s"($p0, $p1)"
 }
 
+object Combine {
+  def create(p0: Term, p1: Term) = (new Combine(p0.convert(sorts.Snap), p1.convert(sorts.Snap)))
+}
+
+/*
 object Combine extends ((Term, Term) => Term) {
   def apply(t0: Term, t1: Term) = new Combine(t0.convert(sorts.Snap), t1.convert(sorts.Snap))
 
   def unapply(c: Combine) = Some((c.p0, c.p1))
 }
+*/
 
-class First(val p: Term) extends SnapshotTerm
+@memoizing
+case class First(val p: Term) extends SnapshotTerm
     with StructuralEqualityUnaryOp[Term]
     /*with PossibleTrigger*/ {
 
   utils.assertSort(p, "term", sorts.Snap)
 }
 
+/*
 object First extends (Term => Term) {
   def apply(t: Term) = t match {
     case Combine(t1, _) => t1
@@ -2076,14 +2085,17 @@ object First extends (Term => Term) {
 
   def unapply(f: First) = Some(f.p)
 }
+*/
 
-class Second(val p: Term) extends SnapshotTerm
+@memoizing
+case class Second(val p: Term) extends SnapshotTerm
     with StructuralEqualityUnaryOp[Term]
     /*with PossibleTrigger*/ {
 
   utils.assertSort(p, "term", sorts.Snap)
 }
 
+/*
 object Second extends (Term => Term) {
   def apply(t: Term) = t match {
     case Combine(_, t2) => t2
@@ -2092,6 +2104,7 @@ object Second extends (Term => Term) {
 
   def unapply(s: Second) = Some(s.p)
 }
+*/
 
 /* Quantified permissions */
 
@@ -2151,6 +2164,7 @@ case class PredicateTrigger(predname: String, psf: Term, args: Seq[Term]) extend
 
 /* Magic wands */
 
+// TODO: Avoid extending Combine to make constructor private.
 case class MagicWandSnapshot(abstractLhs: Term, rhsSnapshot: Term) extends Combine(abstractLhs, rhsSnapshot) {
   utils.assertSort(abstractLhs, "abstract lhs", sorts.Snap)
   utils.assertSort(rhsSnapshot, "rhs", sorts.Snap)
