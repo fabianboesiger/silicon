@@ -1757,11 +1757,13 @@ sealed trait BinaryMultisetOp extends MultisetTerm
   val sort = sorts.Multiset(elementsSort)
 }
 
+@memoizing
 case class EmptyMultiset(elementsSort: Sort) extends MultisetTerm with Literal {
   val sort = sorts.Multiset(elementsSort)
   override lazy val toString = "Ø"
 }
 
+@memoizing
 case class SingletonMultiset(p: Term) extends MultisetTerm /* with UnaryOp[Term] */ {
   val elementsSort = p.sort
   val sort = sorts.Multiset(elementsSort)
@@ -1769,15 +1771,21 @@ case class SingletonMultiset(p: Term) extends MultisetTerm /* with UnaryOp[Term]
   override lazy val toString = s"{$p}"
 }
 
-class MultisetAdd(val p0: Term, val p1: Term) extends MultisetTerm
+@memoizing
+case class MultisetAdd(val p0: Term, val p1: Term) extends MultisetTerm
     with StructuralEqualityBinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Multiset].elementsSort
   val sort = sorts.Multiset(elementsSort)
 
   override val op = "+"
+
+  override def validate =
+    utils.assertSort(this.p0, "first operand", "Set", _.isInstanceOf[sorts.Multiset])
+    utils.assertSort(this.p1, "second operand", this.p0.sort.asInstanceOf[sorts.Multiset].elementsSort)
 }
 
+/*
 object MultisetAdd extends ((Term, Term) => MultisetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSort(t0, "first operand", "Set", _.isInstanceOf[sorts.Multiset])
@@ -1788,11 +1796,16 @@ object MultisetAdd extends ((Term, Term) => MultisetTerm) {
 
   def unapply(ma: MultisetAdd) = Some((ma.p0, ma.p1))
 }
+*/
 
-class MultisetUnion(val p0: Term, val p1: Term) extends BinaryMultisetOp {
+@memoizing
+case class MultisetUnion(val p0: Term, val p1: Term) extends BinaryMultisetOp {
   override val op = "∪"
+
+  override def validate = utils.assertSameSorts[sorts.Multiset](this.p0, this.p1)
 }
 
+/*
 object MultisetUnion extends ((Term, Term) => MultisetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Multiset](t0, t1)
@@ -1801,11 +1814,16 @@ object MultisetUnion extends ((Term, Term) => MultisetTerm) {
 
   def unapply(mu: MultisetUnion) = Some((mu.p0, mu.p1))
 }
+*/
 
-class MultisetIntersection(val p0: Term, val p1: Term) extends BinaryMultisetOp {
+@memoizing
+case class MultisetIntersection(val p0: Term, val p1: Term) extends BinaryMultisetOp {
   override val op = "∩"
+
+  override def validate = utils.assertSameSorts[sorts.Multiset](this.p0, this.p1)
 }
 
+/*
 object MultisetIntersection extends ((Term, Term) => MultisetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Multiset](t0, t1)
@@ -1814,12 +1832,17 @@ object MultisetIntersection extends ((Term, Term) => MultisetTerm) {
 
   def unapply(mi: MultisetIntersection) = Some((mi.p0, mi.p1))
 }
+*/
 
-class MultisetSubset(val p0: Term, val p1: Term) extends BooleanTerm
+@memoizing
+case class MultisetSubset(val p0: Term, val p1: Term) extends BooleanTerm
     with StructuralEqualityBinaryOp[Term] {
   override val op = "⊂"
+
+  override def validate = utils.assertSameSorts[sorts.Multiset](this.p0, this.p1)
 }
 
+/*
 object MultisetSubset extends ((Term, Term) => BooleanTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Multiset](t0, t1)
@@ -1828,11 +1851,16 @@ object MultisetSubset extends ((Term, Term) => BooleanTerm) {
 
   def unapply(ms: MultisetSubset) = Some((ms.p0, ms.p1))
 }
+*/
 
-class MultisetDifference(val p0: Term, val p1: Term) extends BinaryMultisetOp {
+@memoizing
+case class MultisetDifference(val p0: Term, val p1: Term) extends BinaryMultisetOp {
   override val op = "\\"
+
+  override def validate = utils.assertSameSorts[sorts.Multiset](this.p0, this.p1)
 }
 
+/*
 object MultisetDifference extends ((Term, Term) => MultisetTerm) {
   def apply(t0: Term, t1: Term) = {
     utils.assertSameSorts[sorts.Multiset](t0, t1)
@@ -1841,14 +1869,19 @@ object MultisetDifference extends ((Term, Term) => MultisetTerm) {
 
   def unapply(md: MultisetDifference) = Some((md.p0, md.p1))
 }
+*/
 
-class MultisetCardinality(val p: Term) extends Term
+@memoizing
+case class MultisetCardinality(val p: Term) extends Term
     with StructuralEqualityUnaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
+
+  override def validate = utils.assertSort(this.p, "term", "Multiset", _.isInstanceOf[sorts.Multiset])
 }
 
+/*
 object MultisetCardinality extends (Term => MultisetCardinality) {
   def apply(t: Term) = {
     utils.assertSort(t, "term", "Multiset", _.isInstanceOf[sorts.Multiset])
@@ -1857,14 +1890,21 @@ object MultisetCardinality extends (Term => MultisetCardinality) {
 
   def unapply(mc: MultisetCardinality) = Some(mc.p)
 }
+*/
 
-class MultisetCount(val p0: Term, val p1: Term) extends Term
+@memoizing
+case class MultisetCount(val p0: Term, val p1: Term) extends Term
     with StructuralEqualityBinaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"$p0($p1)"
+
+  override def validate =
+    utils.assertSort(this.p0, "first operand", "Multiset", _.isInstanceOf[sorts.Multiset])
+    utils.assertSort(this.p1, "second operand", this.p0.sort.asInstanceOf[sorts.Multiset].elementsSort)
 }
 
+/*
 object MultisetCount extends {
   def apply(ms: Term, el: Term) = {
     utils.assertSort(ms, "first operand", "Multiset", _.isInstanceOf[sorts.Multiset])
@@ -1875,6 +1915,7 @@ object MultisetCount extends {
 
   def unapply(mc: MultisetCount) = Some((mc.p0, mc.p1))
 }
+*/
 
 /* Maps */
 
