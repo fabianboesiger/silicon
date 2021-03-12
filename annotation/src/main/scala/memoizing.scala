@@ -25,7 +25,7 @@ object memoizingMacro {
 
     // Extract information from class declaration.
     val (className, fields, bases, body) = try {
-      val q"case class $className $constructorMods(..$fields) extends ..$bases { ..$body }" = classDecl
+      val q"case class $className $_(..$fields) extends ..$bases { ..$body }" = classDecl
       // TODO: Assert that class implements Term trait.
       (className, fields, bases, body)
     } catch {
@@ -36,7 +36,7 @@ object memoizingMacro {
     // They are later inserted into the newly generated companion object.
     val companionDefns = companionDecl match {
       case Some(companionDecl) =>
-        val q"object $companionName extends ..$companionBases { ..$companionBody }" = companionDecl
+        val q"object $_ extends ..$_ { ..$companionBody }" = companionDecl
         companionBody
       case None => List(q"")
     }
@@ -56,7 +56,7 @@ object memoizingMacro {
     val renamedCompanionDefns = companionDefns
       .map((elem) => try {
         val defn = elem.asInstanceOf[DefDef]
-        val q"def $methodName(...${methodFields}): $methodReturnType = $methodBody" = defn
+        val q"$_ def $methodName(...${methodFields}): $methodReturnType = $methodBody" = defn
 
         if (methodName.toString == "unapply") hasUnapplyMethod = true
 
