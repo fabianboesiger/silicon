@@ -25,7 +25,7 @@ object memoizingMacro {
 
     // Extract information from class declaration.
     val (className, fields, bases, body) = try {
-      val q"case class $className (..$fields) extends ..$bases { ..$body }" = classDecl
+      val q"case class $className $constructorMods(..$fields) extends ..$bases { ..$body }" = classDecl
       // TODO: Assert that class implements Term trait.
       (className, fields, bases, body)
     } catch {

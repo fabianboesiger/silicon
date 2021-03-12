@@ -518,7 +518,7 @@ object Exists extends Quantifier {
 }
 
 @memoizing
-case class Quantification (val q: Quantifier, /* TODO: Rename */
+case class Quantification private[terms] (val q: Quantifier, /* TODO: Rename */
                                      val vars: Seq[Var],
                                      val body: Term,
                                      val triggers: Seq[Trigger],
