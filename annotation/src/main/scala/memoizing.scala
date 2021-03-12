@@ -98,7 +98,6 @@ object memoizingMacro {
                   else
                     q"new $className(..${fieldNames})"
                 }
-                term.validate
                 pool.addOne(((..${fieldNames}), term))
                 term
             }
