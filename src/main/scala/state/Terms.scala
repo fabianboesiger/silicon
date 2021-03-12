@@ -521,10 +521,7 @@ case class Quantification private[terms] (val q: Quantifier, /* TODO: Rename */
                                      val triggers: Seq[Trigger],
                                      val name: String,
                                      val isGlobal: Boolean)
-  extends BooleanTerm
-    with StructuralEquality {
-
-  val equalityDefiningMembers = q :: vars :: body :: triggers :: Nil
+  extends BooleanTerm {
 
   def copy(q: Quantifier = q,
            vars: Seq[Var] = vars,
@@ -574,7 +571,7 @@ sealed abstract class ArithmeticTerm extends Term {
 
 @memoizing
 case class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
-  with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "+"
 }
@@ -592,7 +589,7 @@ object Plus extends ((Term, Term) => Term) {
 
 @memoizing
 case class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
-  with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "-"
 }
@@ -610,7 +607,7 @@ object Minus extends ((Term, Term) => Term) {
 
 @memoizing
 case class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
-  with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "*"
 }
@@ -648,7 +645,7 @@ sealed trait BooleanTerm extends Term { override val sort = sorts.Bool }
 
 @memoizing
 case class Not(val p: Term) extends BooleanTerm
-  with StructuralEqualityUnaryOp[Term] {
+  with UnaryOp[Term] {
 
   override val op = "!"
 
@@ -668,12 +665,9 @@ object Not extends (Term => Term) {
 }
 
 @memoizing
-case class Or(val ts: Seq[Term]) extends BooleanTerm
-  with StructuralEquality {
+case class Or(val ts: Seq[Term]) extends BooleanTerm {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
-
-  val equalityDefiningMembers = ts
 
   override lazy val toString = ts.mkString(" || ")
 }
@@ -711,12 +705,9 @@ object Or extends (Iterable[Term] => Term) {
 }
 
 @memoizing
-case class And(val ts: Seq[Term]) extends BooleanTerm
-  with StructuralEquality {
+case class And(val ts: Seq[Term]) extends BooleanTerm {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
-
-  val equalityDefiningMembers = ts
 
   override lazy val toString = ts.mkString(" && ")
 }
@@ -741,7 +732,7 @@ object And extends (Iterable[Term] => Term) {
 
 @memoizing
 case class Implies(val p0: Term, val p1: Term) extends BooleanTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "==>"
 }
@@ -760,7 +751,7 @@ object Implies extends ((Term, Term) => Term) {
 
 @memoizing
 case class Iff(val p0: Term, val p1: Term) extends BooleanTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "<==>"
 }
@@ -776,12 +767,11 @@ object Iff extends ((Term, Term) => Term) {
 
 @memoizing
 case class Ite(val t0: Term, val t1: Term, val t2: Term)
-  extends Term with StructuralEquality {
+  extends Term {
 
   assert(t0.sort == sorts.Bool && t1.sort == t2.sort, /* @elidable */
     s"Ite term Ite($t0, $t1, $t2) is not well-sorted: ${t0.sort}, ${t1.sort}, ${t2.sort}")
 
-  val equalityDefiningMembers = t0 :: t1 :: t2 :: Nil
   val sort = t1.sort
   override lazy val toString = s"($t0 ? $t1 : $t2)"
 }
@@ -843,7 +833,7 @@ object Equals extends ((Term, Term) => BooleanTerm) {
 /* Represents built-in equality, e.g., '=' in SMT-LIB */
 @memoizing
 case class BuiltinEquals private[terms] (val p0: Term, val p1: Term) extends Equals
-  with StructuralEqualityBinaryOp[Term]
+  with BinaryOp[Term]
 
 object BuiltinEquals extends ((Term, Term) => BooleanTerm) {
   def apply(t1: Term, t2: Term): BooleanTerm = (t1, t2) match {
@@ -855,14 +845,14 @@ object BuiltinEquals extends ((Term, Term) => BooleanTerm) {
 /* Custom equality that (potentially) needs to be axiomatised. */
 @memoizing
 case class CustomEquals private[terms] (val p0: Term, val p1: Term) extends Equals
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "==="
 }
 
 @memoizing
 case class Less(val p0: Term, val p1: Term) extends ComparisonTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   assert(p0.sort == p1.sort,
     s"Expected both operands to be of the same sort, but found ${p0.sort} ($p0) and ${p1.sort} ($p1).")
@@ -880,7 +870,7 @@ object Less extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term)
 
 @memoizing
 case class AtMost(val p0: Term, val p1: Term) extends ComparisonTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "<="
 }
@@ -895,7 +885,7 @@ object AtMost extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Ter
 
 @memoizing
 case class Greater(val p0: Term, val p1: Term) extends ComparisonTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = ">"
 }
@@ -910,7 +900,7 @@ object Greater extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Te
 
 @memoizing
 case class AtLeast(val p0: Term, val p1: Term) extends ComparisonTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = ">="
 }
@@ -1000,10 +990,8 @@ object FractionPermLiteral extends (Rational => Permissions) {
 
 @memoizing
 case class FractionPerm(val n: Term, val d: Term)
-  extends Permissions
-    with StructuralEquality {
+  extends Permissions {
 
-  val equalityDefiningMembers = n :: d :: Nil
   override lazy val toString = s"$n/$d"
 }
 
@@ -1027,7 +1015,7 @@ case class IsReadPermVar(v: Var, ub: Term) extends BooleanTerm {
 @memoizing
 case class PermTimes(val p0: Term, val p1: Term)
   extends Permissions
-    with StructuralEqualityBinaryOp[Term] {
+    with BinaryOp[Term] {
 
   override val op = "*"
 }
@@ -1046,8 +1034,7 @@ object PermTimes extends ((Term, Term) => Term) {
 @memoizing
 case class IntPermTimes(val p0: Term, val p1: Term)
   extends Permissions
-    with BinaryOp[Term]
-    with StructuralEqualityBinaryOp[Term] {
+    with BinaryOp[Term] {
 
   override val op = "*"
 }
@@ -1067,8 +1054,7 @@ object IntPermTimes extends ((Term, Term) => Term) {
 @memoizing
 case class PermIntDiv(val p0: Term, val p1: Term)
   extends Permissions
-    with BinaryOp[Term]
-    with StructuralEqualityBinaryOp[Term] {
+    with BinaryOp[Term] {
 
   utils.assertSort(p1, "Second term", sorts.Int)
 
@@ -1094,8 +1080,7 @@ object PermDiv extends ((Term, Term) => Term) {
 @memoizing
 case class PermPlus(val p0: Term, val p1: Term)
   extends Permissions
-    with BinaryOp[Term]
-    with StructuralEqualityBinaryOp[Term] {
+    with BinaryOp[Term] {
 
   override val op = "+"
 }
@@ -1116,8 +1101,7 @@ object PermPlus extends ((Term, Term) => Term) {
 @memoizing
 case class PermMinus(val p0: Term, val p1: Term)
   extends Permissions
-    with BinaryOp[Term]
-    with StructuralEqualityBinaryOp[Term] {
+    with BinaryOp[Term] {
 
   override val op = "-"
 
@@ -1142,8 +1126,7 @@ object PermMinus extends ((Term, Term) => Term) {
 @memoizing
 case class PermLess(val p0: Term, val p1: Term)
   extends BooleanTerm
-    with BinaryOp[Term]
-    with StructuralEqualityBinaryOp[Term] {
+    with BinaryOp[Term] {
 
   override lazy val toString = s"($p0) < ($p1)"
 
@@ -1169,7 +1152,7 @@ object PermLess extends ((Term, Term) => Term) {
 
 @memoizing
 case class PermAtMost(val p0: Term, val p1: Term) extends ComparisonTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "<="
 }
@@ -1184,8 +1167,7 @@ object PermAtMost extends ((Term, Term) => Term) {
 
 @memoizing
 case class PermMin(val p0: Term, val p1: Term) extends Permissions
-  with BinaryOp[Term]
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   utils.assertSort(p0, "Permission 1st", sorts.Perm)
   utils.assertSort(p1, "Permission 2nd", sorts.Perm)
@@ -1235,7 +1217,7 @@ case class SeqSingleton(p: Term) extends SeqTerm /* with UnaryOp[Term] */ {
 
 @memoizing
 case class SeqAppend(val p0: Term, val p1: Term) extends SeqTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
   val sort = sorts.Seq(elementsSort)
@@ -1252,7 +1234,7 @@ object SeqAppend extends ((Term, Term) => SeqTerm) {
 
 @memoizing
 case class SeqDrop(val p0: Term, val p1: Term) extends SeqTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
   val sort = sorts.Seq(elementsSort)
@@ -1270,7 +1252,7 @@ object SeqDrop extends ((Term, Term) => SeqTerm) {
 
 @memoizing
 case class SeqTake(val p0: Term, val p1: Term) extends SeqTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
   val sort = sorts.Seq(elementsSort)
@@ -1288,7 +1270,7 @@ object SeqTake extends ((Term, Term) => SeqTerm) {
 
 @memoizing
 case class SeqLength(val p: Term) extends Term
-  with StructuralEqualityUnaryOp[Term] {
+  with UnaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
@@ -1303,7 +1285,7 @@ object SeqLength {
 
 @memoizing
 case class SeqAt(val p0: Term, val p1: Term) extends Term
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val sort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
 
@@ -1320,7 +1302,7 @@ object SeqAt extends ((Term, Term) => Term) {
 
 @memoizing
 case class SeqIn(val p0: Term, val p1: Term) extends BooleanTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override lazy val toString = s"$p1 in $p0"
 }
@@ -1335,12 +1317,10 @@ object SeqIn extends ((Term, Term) => BooleanTerm) {
 
 @memoizing
 case class SeqUpdate(val t0: Term, val t1: Term, val t2: Term)
-  extends SeqTerm
-    with StructuralEquality {
+  extends SeqTerm {
 
   val sort = t0.sort.asInstanceOf[sorts.Seq]
   val elementsSort = sort.elementsSort
-  val equalityDefiningMembers = t0 :: t1 :: t2 :: Nil
   override lazy val toString = s"$t0[$t1] := $t2"
 }
 
@@ -1362,7 +1342,7 @@ sealed trait SetTerm extends Term {
 }
 
 sealed trait BinarySetOp extends SetTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Set].elementsSort
   val sort = sorts.Set(elementsSort)
@@ -1384,7 +1364,7 @@ case class SingletonSet(p: Term) extends SetTerm /* with UnaryOp[Term] */ {
 
 @memoizing
 case class SetAdd(val p0: Term, val p1: Term) extends SetTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Set].elementsSort
   val sort = sorts.Set(elementsSort)
@@ -1427,7 +1407,7 @@ object SetIntersection extends ((Term, Term) => SetTerm) {
 
 @memoizing
 case class SetSubset(val p0: Term, val p1: Term) extends BooleanTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
   override val op = "⊂"
 }
 
@@ -1440,7 +1420,7 @@ object SetSubset extends ((Term, Term) => BooleanTerm) {
 
 @memoizing
 case class SetDisjoint(val p0: Term, val p1: Term) extends BooleanTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
   override val op = "disj"
 }
 
@@ -1465,7 +1445,7 @@ object SetDifference extends ((Term, Term) => SetTerm) {
 
 @memoizing
 case class SetIn(val p0: Term, val p1: Term) extends BooleanTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   override val op = "in"
 }
@@ -1481,7 +1461,7 @@ object SetIn extends ((Term, Term) => BooleanTerm) {
 
 @memoizing
 case class SetCardinality(val p: Term) extends Term
-  with StructuralEqualityUnaryOp[Term] {
+  with UnaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
@@ -1502,7 +1482,7 @@ sealed trait MultisetTerm extends Term {
 }
 
 sealed trait BinaryMultisetOp extends MultisetTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Multiset].elementsSort
   val sort = sorts.Multiset(elementsSort)
@@ -1524,7 +1504,7 @@ case class SingletonMultiset(p: Term) extends MultisetTerm /* with UnaryOp[Term]
 
 @memoizing
 case class MultisetAdd(val p0: Term, val p1: Term) extends MultisetTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Multiset].elementsSort
   val sort = sorts.Multiset(elementsSort)
@@ -1567,7 +1547,7 @@ object MultisetIntersection extends ((Term, Term) => MultisetTerm) {
 
 @memoizing
 case class MultisetSubset(val p0: Term, val p1: Term) extends BooleanTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
   override val op = "⊂"
 }
 
@@ -1592,7 +1572,7 @@ object MultisetDifference extends ((Term, Term) => MultisetTerm) {
 
 @memoizing
 case class MultisetCardinality(val p: Term) extends Term
-  with StructuralEqualityUnaryOp[Term] {
+  with UnaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
@@ -1607,7 +1587,7 @@ object MultisetCardinality extends (Term => MultisetCardinality) {
 
 @memoizing
 case class MultisetCount(val p0: Term, val p1: Term) extends Term
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   val sort = sorts.Int
   override lazy val toString = s"$p0($p1)"
@@ -1637,7 +1617,7 @@ case class EmptyMap(keySort: Sort, valueSort: Sort) extends MapTerm with Literal
 }
 
 @memoizing
-case class MapLookup(base: Term, key: Term) extends Term with StructuralEqualityBinaryOp[Term] {
+case class MapLookup(base: Term, key: Term) extends Term with BinaryOp[Term] {
   val sort: Sort = p0.sort.asInstanceOf[sorts.Map].valueSort
   override def p0: Term = base
   override def p1: Term = key
@@ -1653,7 +1633,7 @@ object MapLookup extends ((Term, Term) => Term) {
 }
 
 @memoizing
-case class MapCardinality(val p: Term) extends Term with StructuralEqualityUnaryOp[Term] {
+case class MapCardinality(val p: Term) extends Term with UnaryOp[Term] {
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
 }
@@ -1666,11 +1646,10 @@ object MapCardinality extends (Term => MapCardinality) {
 }
 
 @memoizing
-case class MapUpdate(val base: Term, val key: Term, val value: Term) extends MapTerm with StructuralEquality {
+case class MapUpdate(val base: Term, val key: Term, val value: Term) extends MapTerm {
   override val sort: sorts.Map = base.sort.asInstanceOf[sorts.Map]
   override val keySort: Sort = sort.keySort
   override val valueSort: Sort = sort.valueSort
-  override val equalityDefiningMembers: Seq[Any] = Seq(base, key, value)
 }
 
 object MapUpdate extends ((Term, Term, Term) => MapTerm) {
@@ -1683,7 +1662,7 @@ object MapUpdate extends ((Term, Term, Term) => MapTerm) {
 }
 
 @memoizing
-case class MapDomain(val p: Term) extends SetTerm with StructuralEqualityUnaryOp[Term] {
+case class MapDomain(val p: Term) extends SetTerm with UnaryOp[Term] {
   override val elementsSort: Sort = p.sort.asInstanceOf[sorts.Map].keySort
   override val sort: sorts.Set = sorts.Set(elementsSort)
   override lazy val toString = s"domain($p)"
@@ -1697,7 +1676,7 @@ object MapDomain extends (Term => SetTerm) {
 }
 
 @memoizing
-case class MapRange(val p: Term) extends SetTerm with StructuralEqualityUnaryOp[Term] {
+case class MapRange(val p: Term) extends SetTerm with UnaryOp[Term] {
   override val elementsSort: Sort = p.sort.asInstanceOf[sorts.Map].valueSort
   override val sort: sorts.Set = sorts.Set(elementsSort)
   override lazy val toString = s"range($p)"
@@ -1716,7 +1695,7 @@ sealed trait SnapshotTerm extends Term { val sort = sorts.Snap }
 
 @memoizing
 case class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   utils.assertSort(p0, "first operand", sorts.Snap)
   utils.assertSort(p1, "second operand", sorts.Snap)
@@ -1730,7 +1709,7 @@ object Combine extends ((Term, Term) => Term) {
 
 @memoizing
 case class First(val p: Term) extends SnapshotTerm
-  with StructuralEqualityUnaryOp[Term]
+  with UnaryOp[Term]
   /*with PossibleTrigger*/ {
 
   utils.assertSort(p, "term", sorts.Snap)
@@ -1745,7 +1724,7 @@ object First extends (Term => Term) {
 
 @memoizing
 case class Second(val p: Term) extends SnapshotTerm
-  with StructuralEqualityUnaryOp[Term]
+  with UnaryOp[Term]
   /*with PossibleTrigger*/ {
 
   utils.assertSort(p, "term", sorts.Snap)
@@ -1973,13 +1952,11 @@ object PsfTop extends (String => Identifier) {
  */
 @memoizing
 case class SortWrapper(val t: Term, val to: Sort)
-  extends Term
-    with StructuralEquality {
+  extends Term {
 
   assert((t.sort == sorts.Snap || to == sorts.Snap) && t.sort != to,
     s"Unexpected sort wrapping of $t from ${t.sort} to $to")
 
-  val equalityDefiningMembers = t :: to :: Nil
   //  override lazy val toString = s"SortWrapper($t, $to)"
   override lazy val toString = t.toString
   override val sort = to
@@ -1996,10 +1973,9 @@ object SortWrapper {
 /* Other terms */
 
 @memoizing
-case class Distinct(val ts: Set[Symbol]) extends BooleanTerm with StructuralEquality {
+case class Distinct(val ts: Set[Symbol]) extends BooleanTerm {
   assert(ts.nonEmpty, "Distinct requires at least one term")
 
-  val equalityDefiningMembers = ts :: Nil
   override lazy val toString = s"Distinct($ts)"
 }
 
@@ -2010,11 +1986,10 @@ object Distinct extends (Set[Symbol] => Term) {
 }
 
 @memoizing
-case class Let(val bindings: Map[Var, Term], val body: Term) extends Term with StructuralEquality {
+case class Let(val bindings: Map[Var, Term], val body: Term) extends Term {
   assert(bindings.nonEmpty, "Let needs to bind at least one variable")
 
   val sort = body.sort
-  val equalityDefiningMembers = Seq(body) ++ bindings.flatMap(_.productIterator)
 
   override lazy val toString = s"let ${bindings.map(p => s"${p._1} = ${p._2}")} in $body"
 }
