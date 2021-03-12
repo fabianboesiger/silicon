@@ -608,7 +608,6 @@ sealed abstract class ArithmeticTerm extends Term {
 @memoizing
 case class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
-  import predef.Zero
 
   override val op = "+"
 }
@@ -715,7 +714,8 @@ object Not extends (Term => Term) {
 }
 */
 
-class Or(val ts: Seq[Term]) extends BooleanTerm
+@memoizing
+case class Or(val ts: Seq[Term]) extends BooleanTerm
   with StructuralEquality {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
@@ -732,8 +732,8 @@ class Or(val ts: Seq[Term]) extends BooleanTerm
  *       since extractor objects can't be type-parametrised.
  */
 object Or extends (Iterable[Term] => Term) {
-  def apply(ts: Term*) = createOr(ts)
-  def apply(ts: Iterable[Term]) = createOr(ts.toSeq)
+  def apply(ts: Term*)(implicit dummy: DummyImplicit): Term = apply(ts)
+  def apply(ts: Iterable[Term]): Term = apply(ts.toSeq)
 
   //  def apply(e0: Term, e1: Term) = (e0, e1) match {
   //    case (True(), _) | (_, True()) => True()
@@ -743,8 +743,8 @@ object Or extends (Iterable[Term] => Term) {
   //    case _ => new Or(e0, e1)
   //  }
 
-  @inline
-  def createOr(_ts: Seq[Term]): Term = {
+  //@inline
+  def apply(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case Or(ts1) => ts1; case other => other :: Nil}
     ts = _ts.filterNot(_ == False())
     ts = ts.distinct
@@ -756,11 +756,10 @@ object Or extends (Iterable[Term] => Term) {
       case _ => new Or(ts)
     }
   }
-
-  def unapply(e: Or) = Some(e.ts)
 }
 
-class And(val ts: Seq[Term]) extends BooleanTerm
+@memoizing
+case class And(val ts: Seq[Term]) extends BooleanTerm
   with StructuralEquality {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
@@ -771,11 +770,11 @@ class And(val ts: Seq[Term]) extends BooleanTerm
 }
 
 object And extends (Iterable[Term] => Term) {
-  def apply(ts: Term*) = createAnd(ts)
-  def apply(ts: Iterable[Term]) = createAnd(ts.toSeq)
+  def apply(ts: Term*)(implicit dummy: DummyImplicit): Term = apply(ts)
+  def apply(ts: Iterable[Term]): Term = apply(ts.toSeq)
 
-  @inline
-  def createAnd(_ts: Seq[Term]): Term = {
+  //@inline
+  def apply(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case And(ts1) => ts1; case other => other :: Nil}
     ts = _ts.filterNot(_ == True())
     ts = ts.distinct
@@ -787,8 +786,6 @@ object And extends (Iterable[Term] => Term) {
       case _ => new And(ts)
     }
   }
-
-  def unapply(e: And) = Some(e.ts)
 }
 
 
@@ -799,9 +796,8 @@ case class Implies(val p0: Term, val p1: Term) extends BooleanTerm
   override val op = "==>"
 }
 
-/*
+
 object Implies extends ((Term, Term) => Term) {
-  @tailrec
   def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (True(), _) => e1
     case (False(), _) => True()
@@ -813,7 +809,7 @@ object Implies extends ((Term, Term) => Term) {
 
   def unapply(e: Implies) = Some((e.p0, e.p1))
 }
-*/
+
 
 @memoizing
 case class Iff(val p0: Term, val p1: Term) extends BooleanTerm
@@ -822,9 +818,9 @@ case class Iff(val p0: Term, val p1: Term) extends BooleanTerm
   override val op = "<==>"
 }
 
-/*
+
 object Iff extends ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (True(), _) => e1
     case (_, True()) => e0
     case _ if e0 == e1 => True()
@@ -833,7 +829,7 @@ object Iff extends ((Term, Term) => Term) {
 
   def unapply(e: Iff) = Some((e.p0, e.p1))
 }
-*/
+
 
 @memoizing
 case class Ite(val t0: Term, val t1: Term, val t2: Term)
@@ -2047,17 +2043,9 @@ case class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
   override lazy val toString = s"($p0, $p1)"
 }
 
-object Combine {
-  def create(p0: Term, p1: Term) = (new Combine(p0.convert(sorts.Snap), p1.convert(sorts.Snap)))
-}
-
-/*
 object Combine extends ((Term, Term) => Term) {
-  def apply(t0: Term, t1: Term) = new Combine(t0.convert(sorts.Snap), t1.convert(sorts.Snap))
-
-  def unapply(c: Combine) = Some((c.p0, c.p1))
+  def apply(t0: Term, t1: Term): Combine = new Combine(t0.convert(sorts.Snap), t1.convert(sorts.Snap))
 }
-*/
 
 @memoizing
 case class First(val p: Term) extends SnapshotTerm
@@ -2312,7 +2300,8 @@ object PsfTop extends (String => Identifier) {
  * because they are optimised away if wrappee `t` already has sort `to`.
  */
 
-class SortWrapper(val t: Term, val to: Sort)
+@memoizing
+case class SortWrapper(val t: Term, val to: Sort)
     extends Term
        with StructuralEquality {
 
@@ -2326,13 +2315,11 @@ class SortWrapper(val t: Term, val to: Sort)
 }
 
 object SortWrapper {
-  def apply(t: Term, to: Sort) = t match {
+  def apply(t: Term, to: Sort): Term = t match {
     case _ if t.sort == to => t
     case sw: SortWrapper if sw.t.sort == to => sw.t
     case _ => new SortWrapper(t, to)
   }
-
-  def unapply(sw: SortWrapper) = Some((sw.t, sw.to))
 }
 
 /* Other terms */

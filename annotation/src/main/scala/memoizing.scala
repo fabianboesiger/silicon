@@ -47,22 +47,27 @@ object memoizingMacro {
     // TODO: Find a better solution.
     // Check if an apply method already exists and rename it.
     var hasRenamedApplyMethod = false
+    var hasUnapplyMethod = false
     var returnType = className
     val renamedCompanionDefns = companionDefns
       .map((elem) => try {
         val defn = elem.asInstanceOf[DefDef]
-        val q"def $methodName(..${methodFields}): $methodReturnType = $methodBody" = defn
-        if (methodName.toString == "apply" && methodFields.length == fields.length && methodFields
+        val q"def $methodName(...${methodFields}): $methodReturnType = $methodBody" = defn
+
+        if (methodName.toString == "unapply") hasUnapplyMethod = true
+
+        if (methodName.toString == "apply" && methodFields.head.length == fields.length && methodFields.head
           .zip(fields)
           .map({ case (mf, f) => mf.tpt.toString == f.tpt.toString })
           .foldLeft(true)(_ && _)
         ) {
           hasRenamedApplyMethod = true
+          // TODO: Make it possible to use implicit return type. (Using context?)
           if (methodReturnType.toString == "<type ?>")
             c.abort(c.enclosingPosition, "Return type of non-compiler-generated apply method has to be explicit.")
           else
             returnType = TypeName(methodReturnType.toString)
-          q"def _apply (..${methodFields}): $methodReturnType = $methodBody"
+          q"private def _apply (...${methodFields}): $methodReturnType = $methodBody"
         } else defn
       } catch {
         case _: ClassCastException => elem
@@ -72,7 +77,7 @@ object memoizingMacro {
 
     // Create output from the extracted information.
     val output = q"""
-      class $className (..$fields) extends ..$bases { ..$body }
+      class $className private[terms] (..$fields) extends ..$bases { ..$body }
 
       object ${termName} extends ((..${fieldTypes}) => $returnType) {
         import scala.collection.mutable.HashMap
@@ -95,21 +100,25 @@ object memoizingMacro {
             }
           }
 
-        def unapply(t: $className) = {
-          ${
-            // Turns out unapply on case classes without fields return true instead of an Option.
-            if (fields.isEmpty)
-              q"true"
-            else
-              q"Some((..${fieldNames.map(name => q"t.$name").toList}))"
-          }
+        ${ // Create unapply method only if not already defined.
+          if (!hasUnapplyMethod)
+            q"""def unapply(t: $className) = {
+              ${
+                // Turns out unapply on case classes without fields return true instead of an Option.
+                if (fields.isEmpty)
+                  q"true"
+                else
+                  q"Some((..${fieldNames.map(name => q"t.$name").toList}))"
+              }
+            }"""
+          else q""
         }
 
         ..$renamedCompanionDefns
       }
     """
 
-    if (hasRenamedApplyMethod) println(output)
+    //if (hasRenamedApplyMethod) println(output)
 
     output
   }
