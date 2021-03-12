@@ -14,6 +14,8 @@ object memoizingMacro {
     import c.universe._
     val inputs = annottees.map(_.tree).toList
 
+    /* STAGE 1: Extract all necessary information about the annotated code */
+
     // Get class declaration and companion object declaration if it exists.
     val (classDecl, companionDecl) = inputs match {
       case (head: ClassDef) :: Nil => (head, None)
@@ -39,10 +41,12 @@ object memoizingMacro {
       case None => List(q"")
     }
 
+    /* STAGE 2: Preparation, check what methods already are defined, rename apply to _apply. */
+
     // Some helper values.
     val fieldTypes = fields.map(_.tpt).toList
     val fieldNames = fields.map(_.name).toList
-    val termName = TermName(className.toString)
+    val termName = TermName(className.toString) // TODO: This seems wrong, but it works for now.
 
     // TODO: Find a better solution.
     // Check if an apply method already exists and rename it.
@@ -73,10 +77,10 @@ object memoizingMacro {
         case _: ClassCastException => elem
       })
 
-
+    /* STAGE 3: Generate output. */
 
     // Create output from the extracted information.
-    val output = q"""
+    q"""
       class $className private[terms] (..$fields) extends ..$bases { ..$body }
 
       object ${termName} extends ((..${fieldTypes}) => $returnType) {
@@ -117,10 +121,6 @@ object memoizingMacro {
         ..$renamedCompanionDefns
       }
     """
-
-    //if (hasRenamedApplyMethod) println(output)
-
-    output
   }
 }
 /*
