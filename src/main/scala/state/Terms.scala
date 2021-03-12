@@ -608,24 +608,23 @@ sealed abstract class ArithmeticTerm extends Term {
 @memoizing
 case class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
+  import predef.Zero
 
   override val op = "+"
 }
 
-/*
 object Plus extends ((Term, Term) => Term) {
   import predef.Zero
 
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (t0, Zero) => t0
     case (Zero, t1) => t1
     case (IntLiteral(n0), IntLiteral(n1)) => IntLiteral(n0 + n1)
     case _ => new Plus(e0, e1)
   }
 
-  def unapply(t: Plus) = Some((t.p0, t.p1))
+  //def unapply(t: Plus) = Some((t.p0, t.p1))
 }
-*/
 
 @memoizing
 case class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm

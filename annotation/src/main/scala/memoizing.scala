@@ -44,24 +44,48 @@ object memoizingMacro {
     val fieldNames = fields.map(_.name).toList
     val termName = TermName(className.toString)
 
+    // TODO: Find a better solution.
+    // Check if an apply method already exists and rename it.
+    var hasRenamedApplyMethod = false
+    var returnType = className
+    val renamedCompanionDefns = companionDefns
+      .map((elem) => try {
+        val defn = elem.asInstanceOf[DefDef]
+        val q"def $methodName(..${methodFields}): $methodReturnType = $methodBody" = defn
+        if (methodName.toString == "apply" && methodFields.length == fields.length && methodFields
+          .zip(fields)
+          .map({ case (mf, f) => mf.tpt.toString == f.tpt.toString })
+          .foldLeft(true)(_ && _)
+        ) {
+          hasRenamedApplyMethod = true
+          if (methodReturnType.toString == "<type ?>")
+            c.abort(c.enclosingPosition, "Return type of non-compiler-generated apply method has to be explicit.")
+          else
+            returnType = TypeName(methodReturnType.toString)
+          q"def _apply (..${methodFields}): $methodReturnType = $methodBody"
+        } else defn
+      } catch {
+        case _: ClassCastException => elem
+      })
+
+
+
     // Create output from the extracted information.
     val output = q"""
       class $className (..$fields) extends ..$bases { ..$body }
 
-      object ${termName} extends ((..${fieldTypes}) => $className) {
+      object ${termName} extends ((..${fieldTypes}) => $returnType) {
         import scala.collection.mutable.HashMap
-        var pool = new HashMap[(..${fieldTypes}), $className]
+        var pool = new HashMap[(..${fieldTypes}), $returnType]
 
           def apply(..$fields) = {
             pool.get((..${fieldNames})) match {
               case Some(term) => term
               case None =>
                 val term = ${
-                  // Workaround for case class Combine, when a instance cannot simply be created
-                  // by calling the constructor with the arguments of apply.
-                  // TODO: Find a better solution.
-                  if (companionDefns.map((defn) => try { Some(defn.asInstanceOf[DefDef]) } catch { case _: ClassCastException => None }).filter(!_.isEmpty).map(_.get.name).contains("create"))
-                    q"${termName}.create(..${fieldNames})"
+                  // Use the now renamed apply method to create an instance of this object.
+                  if (hasRenamedApplyMethod)
+                    q"${termName}._apply(..${fieldNames})"
                   else
                     q"new $className(..${fieldNames})"
                 }
@@ -81,11 +105,11 @@ object memoizingMacro {
           }
         }
 
-        ..$companionDefns
+        ..$renamedCompanionDefns
       }
     """
 
-    //println(output)
+    if (hasRenamedApplyMethod) println(output)
 
     output
   }
