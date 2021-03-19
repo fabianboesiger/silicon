@@ -738,7 +738,6 @@ case class Implies(val p0: Term, val p1: Term) extends BooleanTerm
 }
 
 object Implies extends ((Term, Term) => Term) {
-  @tailrec
   def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (True(), _) => e1
     case (False(), _) => True()

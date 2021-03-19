@@ -1,0 +1,18 @@
+File,Outputs,Mean [ms],StdDev [ms],RelStdDev [%],Best [ms],Median [ms],Worst [ms]
+008-num-traits-pow.rs.vpr,0,3139,314,10,2832,3014,3572
+348_cgmath_point.rs.vpr,2,2305,29,1,2279,2289,2347
+Ackermann_function.rs.vpr,0,1661,49,2,1601,1661,1723
+Binary_search.rs.vpr,0,6972,306,4,6687,6833,7397
+Dijkstras_algorithm-simpl.rs.vpr,0,1135,63,5,1073,1111,1223
+Heapsort_generic.rs.vpr,0,35309,555,1,34538,35570,35821
+Knights_tour.rs.vpr,0,39941,138,0,39782,39922,40119
+Selection_sort.rs.vpr,1,186063,1585,0,183852,186845,187493
+account.rs.vpr,0,2494,1741,69,1233,1293,4957
+ansi-term-external-call.rs.vpr,0,6551,18,0,6537,6540,6577
+balance.rs.vpr,1,1281,41,3,1235,1273,1335
+case1-overflow.rs.vpr,0,11805,33,0,11772,11792,11851
+complex-fn.rs.vpr,0,1014,22,2,993,1005,1045
+fail-pc.rs.vpr,2,945,18,1,931,933,971
+first-final.rs.vpr,0,7188,170,2,7004,7146,7415
+generics-basic-3-6.rs.vpr,1,972,10,1,965,965,987
+with-spec-list.rs.vpr,0,10583,280,2,10298,10489,10964
