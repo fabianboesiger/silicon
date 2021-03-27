@@ -967,6 +967,7 @@ sealed abstract class PermLiteral(val literal: Rational) extends Permissions
 
 @memoizing
 case class NoPerm() extends PermLiteral(Rational.zero) { override lazy val toString = "Z" }
+
 @memoizing
 case class FullPerm() extends PermLiteral(Rational.one) { override lazy val toString = "W" }
 

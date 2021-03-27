@@ -1,0 +1,9 @@
+File,Outputs,Mean [ms],StdDev [ms],RelStdDev [%],Best [ms],Median [ms],Worst [ms]
+Abrupt-silicon.sil,1,1167,87,7,1084,1131,1288
+AccessSubMatrix-silicon.sil,6,2065,29,1,2025,2081,2091
+AddAssignJava-silicon.sil,1,825,23,2,798,821,856
+AmbiguousBooleanOperators-silicon.sil,3,828,18,2,811,820,853
+AppendPrepend-silicon.sil,3,1462,65,4,1406,1426,1554
+ArrayGetList-silicon.sil,2,2250,79,3,2151,2255,2345
+ArrayItemAccess-silicon.sil,1,1847,15,0,1831,1842,1868
+ArrayValues-silicon.sil,1,2576,41,1,2522,2584,2623
