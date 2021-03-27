@@ -93,18 +93,22 @@ sealed trait Decl extends Node {
   def id: Identifier
 }
 
+@memoizing
 case class SortDecl(sort: Sort) extends Decl {
   val id: Identifier = sort.id
 }
 
+@memoizing
 case class FunctionDecl(func: Function) extends Decl {
   val id: Identifier = func.id
 }
 
+@memoizing
 case class SortWrapperDecl(from: Sort, to: Sort) extends Decl {
   val id: Identifier = SortWrapperId(from, to)
 }
 
+@memoizing
 case class MacroDecl(id: Identifier, args: Seq[Var], body: Term) extends Decl
 
 object ConstDecl extends (Var => Decl) { /* TODO: Inconsistent naming - Const vs Var */
@@ -212,6 +216,7 @@ object SMTFun extends ((Identifier, Seq[Sort], Sort) => SMTFun) with GenericFunc
 
 case class Macro(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) extends Applicable
 
+@memoizing
 case class Var(id: Identifier, sort: Sort) extends Function with Application[Var] {
   val applicable: Var = this
   val args: Seq[Term] = Seq.empty
@@ -221,9 +226,9 @@ case class Var(id: Identifier, sort: Sort) extends Function with Application[Var
   override lazy val toString = id.toString
 }
 
-class App(val applicable: Applicable, val args: Seq[Term])
-  extends Application[Applicable]
-    with StructuralEquality {
+@memoizing
+case class App(val applicable: Applicable, val args: Seq[Term])
+  extends Application[Applicable] {
   /*with PossibleTrigger*/
 
   utils.assertExpectedSorts(applicable, args)
@@ -238,7 +243,7 @@ class App(val applicable: Applicable, val args: Seq[Term])
 }
 
 object App extends ((Applicable, Seq[Term]) => App) {
-  def apply(applicable: Applicable, args: Seq[Term]) = new App(applicable, args)
+  //def apply(applicable: Applicable, args: Seq[Term]) = new App(applicable, args)
   def apply(applicable: Applicable, arg: Term) = new App(applicable, Seq(arg))
   def unapply(app: App) = Some((app.applicable, app.args))
 }

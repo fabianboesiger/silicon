@@ -1388,8 +1388,8 @@ object quantifiedChunkSupporter extends QuantifiedChunkSupport {
                        qidPrefix: String)
                       : Quantification = {
 
-    val qvars1 = qvars.map(x => x.copy(id = x.id.rename(id => s"${id}1")))
-    val qvars2 = qvars.map(x => x.copy(id = x.id.rename(id => s"${id}2")))
+    val qvars1 = qvars.map(x => Var(x.id.rename(id => s"${id}1"), x.sort))
+    val qvars2 = qvars.map(x => Var(x.id.rename(id => s"${id}2"), x.sort))
 
     val effectiveCondition = And(condition, IsPositive(perms))
 
