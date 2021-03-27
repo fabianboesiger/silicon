@@ -1809,9 +1809,13 @@ case class PredicateTrigger(predname: String, psf: Term, args: Seq[Term]) extend
 /* Magic wands */
 
 @memoizing
-case class MagicWandSnapshot(abstractLhs: Term, rhsSnapshot: Term) extends Combine(abstractLhs, rhsSnapshot) {
+case class MagicWandSnapshot(abstractLhs: Term, rhsSnapshot: Term) extends SnapshotTerm
+    with BinaryOp[Term] {
   utils.assertSort(abstractLhs, "abstract lhs", sorts.Snap)
   utils.assertSort(rhsSnapshot, "rhs", sorts.Snap)
+
+  def p0 = abstractLhs
+  def p1 = rhsSnapshot
 
   override lazy val toString = s"wandSnap(lhs = $abstractLhs, rhs = $rhsSnapshot)"
 
