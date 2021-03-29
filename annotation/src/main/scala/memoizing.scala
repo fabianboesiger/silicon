@@ -81,16 +81,15 @@ object memoizingMacro {
 
     // Create output from the extracted information.
     q"""
-      case class $className private[terms] (..$fields) extends ..$bases { ..$body }
+      class $className private[terms] (..$fields) extends ..$bases { ..$body }
 
       object ${termName} extends ((..${fieldTypes}) => $returnType) {
-        import java.util.concurrent.ConcurrentHashMap
-        var pool = new ConcurrentHashMap[(..${fieldTypes}), $returnType]
+        import scala.collection.concurrent.TrieMap
+        var pool = new TrieMap[(..${fieldTypes}), $returnType]
 
           def apply(..$fields) = {
-            val res = pool.get((..${fieldNames}));
-            res match {
-              case null =>
+            pool.get((..${fieldNames})) match {
+              case None =>
                 val term = ${
                   // Use the now renamed apply method to create an instance of this object.
                   if (hasRenamedApplyMethod)
@@ -98,9 +97,9 @@ object memoizingMacro {
                   else
                     q"new $className(..${fieldNames})"
                 }
-                pool.put((..${fieldNames}), term)
+                pool.addOne(((..${fieldNames}), term))
                 term
-              case _ => res
+              case Some(term) => term
             }
           }
 

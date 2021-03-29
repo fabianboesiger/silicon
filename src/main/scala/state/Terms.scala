@@ -155,25 +155,18 @@ trait GenericFunction[F <: Function] extends Function with StructuralEquality {
     else s"$id: ${argSorts.mkString(" x ")} -> $resultSort"
 }
 
-trait GenericFunctionCompanion[F <: Function] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort): F
-
-  def apply(id: Identifier, argSort: Sort, resultSort: Sort): F =
-    apply(id, Seq(argSort), resultSort)
-
-  def unapply(fun: F): Some[(Identifier, Seq[Sort], Sort)] =
-    Some((fun.id, fun.argSorts, fun.resultSort))
-}
-
-class Fun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+@memoizing
+case class Fun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[Fun] {
 
   def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
     Fun(id, argSorts, resultSort)
 }
 
-object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) with GenericFunctionCompanion[Fun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new Fun(id, argSorts, resultSort)
+object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) {
+  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort): Fun = new Fun(id, argSorts, resultSort)
+  def apply(id: Identifier, argSort: Sort, resultSort: Sort): Fun =
+    apply(id, Seq(argSort), resultSort)
 }
 
 /* TODO: [18-12-2015 Malte] Since heap-dependent functions are represented by a separate class,
@@ -181,39 +174,43 @@ object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) with GenericFunctionCo
  *       toLimited/toStateless, and to remove the corresponding methods from the FunctionSupporter
  *       object.
  */
-class HeapDepFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+@memoizing
+case class HeapDepFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[HeapDepFun] {
 
   def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
     HeapDepFun(id, argSorts, resultSort)
 }
 
-object HeapDepFun extends ((Identifier, Seq[Sort], Sort) => HeapDepFun) with GenericFunctionCompanion[HeapDepFun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new HeapDepFun(id, argSorts, resultSort)
+object HeapDepFun extends ((Identifier, Seq[Sort], Sort) => HeapDepFun) {
+  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort): HeapDepFun = new HeapDepFun(id, argSorts, resultSort)
 }
 
-class DomainFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+@memoizing
+case class DomainFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[DomainFun] {
 
   def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
     DomainFun(id, argSorts, resultSort)
 }
 
-object DomainFun extends ((Identifier, Seq[Sort], Sort) => DomainFun) with GenericFunctionCompanion[DomainFun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new DomainFun(id, argSorts, resultSort)
+object DomainFun extends ((Identifier, Seq[Sort], Sort) => DomainFun) {
+  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort): DomainFun = new DomainFun(id, argSorts, resultSort)
 }
 
-class SMTFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+@memoizing
+case class SMTFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[SMTFun] {
 
   def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
     SMTFun(id, argSorts, resultSort)
 }
 
-object SMTFun extends ((Identifier, Seq[Sort], Sort) => SMTFun) with GenericFunctionCompanion[SMTFun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new SMTFun(id, argSorts, resultSort)
+object SMTFun extends ((Identifier, Seq[Sort], Sort) => SMTFun) {
+  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort): SMTFun = new SMTFun(id, argSorts, resultSort)
 }
 
+@memoizing
 case class Macro(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) extends Applicable
 
 @memoizing

@@ -9,16 +9,15 @@ package viper.silicon.state.terms
 import viper.silver.ast.utility.{GenericArithmeticSolver, GenericTriggerGenerator, GenericAxiomRewriter}
 import viper.silicon.utils.Counter
 import viper.silicon.state.{Identifier, terms}
+import viper.silicon.annotation.memoizing
 
-class Trigger private[terms] (val p: Seq[Term]) extends StructuralEqualityUnaryOp[Seq[Term]] {
+@memoizing
+case class Trigger (val p: Seq[Term]) {
   override lazy val toString = s"{${p.mkString(",")}}"
 }
 
 object Trigger extends (Seq[Term] => Trigger) {
   def apply(t: Term) = new Trigger(t :: Nil)
-  def apply(ts: Seq[Term]) = new Trigger(ts)
-
-  def unapply(trigger: Trigger) = Some(trigger.p)
 }
 
 /** Attention: The trigger generator is *not* thread-safe, among other things because its
