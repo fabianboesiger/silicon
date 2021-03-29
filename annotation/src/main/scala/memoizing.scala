@@ -81,7 +81,7 @@ object memoizingMacro {
 
     // Create output from the extracted information.
     q"""
-      class $className private[terms] (..$fields) extends ..$bases { ..$body }
+      case class $className private[terms] (..$fields) extends ..$bases { ..$body }
 
       object ${termName} extends ((..${fieldTypes}) => $returnType) {
         import java.util.concurrent.ConcurrentHashMap
