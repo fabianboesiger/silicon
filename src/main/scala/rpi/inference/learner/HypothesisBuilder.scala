@@ -1,5 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference.learner
 
+import com.typesafe.scalalogging.LazyLogging
 import rpi.inference.Hypothesis
 import rpi.inference.learner.template._
 import rpi.util.ast.Expressions._
@@ -15,7 +22,7 @@ import scala.collection.mutable.ListBuffer
   * @param learner     The pointer to the learner.
   * @param constraints The constraints at hand.
   */
-class HypothesisBuilder(learner: Learner, constraints: Seq[ast.Exp]) {
+class HypothesisBuilder(learner: Learner, constraints: Seq[ast.Exp]) extends LazyLogging {
   /**
     * The maximal number of clauses that may be used for a guard.
     */
@@ -36,15 +43,19 @@ class HypothesisBuilder(learner: Learner, constraints: Seq[ast.Exp]) {
     * @return The hypothesis.
     */
   def buildHypothesis(templates: Seq[Template]): Hypothesis = {
+    logger.info("build hypothesis")
+
     val lemmaBuffer: mutable.Buffer[ast.Method] = ListBuffer.empty
     val predicateBuffer: mutable.Buffer[ast.Predicate] = ListBuffer.empty
 
     templates.foreach {
       case template: PredicateTemplate =>
         val predicate = buildPredicate(template)
+        logger.info(predicate.toString())
         predicateBuffer.append(predicate)
       case template: LemmaTemplate =>
         val lemma = buildLemma(template)
+        logger.info(lemma.toString())
         lemmaBuffer.append(lemma)
     }
 

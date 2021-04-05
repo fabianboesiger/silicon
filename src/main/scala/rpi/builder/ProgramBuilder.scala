@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.builder
 
 import rpi.util.ast.Expressions._
@@ -57,11 +63,7 @@ trait ProgramBuilder {
   protected def makeScope(generate: => Unit): ast.Seqn =
     makeSequence(scoped(generate))
 
-  protected def addConditionalOr(conditions: Seq[ast.Exp], thenBody: => ast.Stmt, elseBody: ast.Stmt = makeSkip): Unit =
-    if (conditions.isEmpty) addStatement(elseBody)
-    else addConditional(makeOr(conditions), thenBody, elseBody)
-
-  protected def addConditionalAnd(conditions: Seq[ast.Exp], thenBody: ast.Stmt, elseBody: => ast.Stmt = makeSkip): Unit =
+  protected def addConditional(conditions: Seq[ast.Exp], thenBody: ast.Stmt, elseBody: => ast.Stmt = makeSkip): Unit =
     if (conditions.isEmpty) addStatement(thenBody)
     else addConditional(makeAnd(conditions), thenBody, elseBody)
 
@@ -69,6 +71,7 @@ trait ProgramBuilder {
   protected def addConditional(condition: ast.Exp, thenBody: ast.Stmt, elseBody: ast.Stmt): Unit =
     addStatement(makeConditional(condition, thenBody, elseBody))
 
+  @inline
   protected def addLoop(condition: ast.Exp, body: ast.Stmt, invariants: Seq[ast.Exp] = Seq.empty): Unit =
     addStatement(makeLoop(condition, body, invariants))
 

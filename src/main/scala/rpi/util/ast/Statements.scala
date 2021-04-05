@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.util.ast
 
 import rpi.inference.annotation.{Annotation, Hint}
@@ -55,20 +61,6 @@ object Statements {
     Cut(statement)(info = ValueInfo(check))
 }
 
-@deprecated
-case class Instrument(body: ast.Seqn, annotations: Seq[Annotation])
-                     (override val pos: ast.Position = ast.NoPosition,
-                      override val info: ast.Info = ast.NoInfo,
-                      override val errT: ast.ErrorTrafo = ast.NoTrafos) extends ast.ExtensionStmt {
-
-
-  override def extensionSubnodes: Seq[ast.Node] =
-    Seq(body)
-
-  override def prettyPrint: PrettyPrintPrimitives#Cont =
-    text("instrument") <+> showBlock(body)
-}
-
 case class Hinted(body: ast.Seqn, hints: Seq[Hint])
                  (override val pos: ast.Position = ast.NoPosition,
                   override val info: ast.Info = ast.NoInfo,
@@ -85,7 +77,7 @@ case class Cut(statement: ast.Stmt)
                override val info: ast.Info = ast.NoInfo,
                override val errT: ast.ErrorTrafo = ast.NoTrafos) extends ast.ExtensionStmt {
 
-  lazy val variables: Seq[ast.LocalVar] =
+  lazy val havocked: Seq[ast.LocalVar] =
     statement match {
       case call: ast.MethodCall => call.targets
       case loop: ast.While => loop.writtenVars
@@ -93,7 +85,7 @@ case class Cut(statement: ast.Stmt)
     }
 
   lazy val havoc: ast.Stmt = {
-    val assignments = variables.map { variable => makeAssign(variable, variable) }
+    val assignments = havocked.map { variable => makeAssign(variable, variable) }
     makeLoop(makeFalse, makeSequence(assignments))
   }
 
@@ -101,5 +93,5 @@ case class Cut(statement: ast.Stmt)
     Seq.empty
 
   override def prettyPrint: PrettyPrintPrimitives#Cont =
-    text(s"havoc(${variables.mkString(", ")})")
+    text(s"havoc(${havocked.mkString(", ")})")
 }

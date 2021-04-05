@@ -1,11 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference.teacher
 
+import com.typesafe.scalalogging.LazyLogging
 import rpi.Names
 import rpi.inference.context.Instance
 import rpi.inference._
 import rpi.inference.teacher.query.Query
 import rpi.inference.teacher.state._
-import rpi.util.ast.ValueInfo
+import rpi.util.ast.Expressions.{makeField, makePredicate}
+import rpi.util.ast.{Infos, Previous}
 import viper.silicon.interfaces.SiliconRawCounterexample
 import viper.silver.ast
 import viper.silver.verifier._
@@ -14,7 +22,7 @@ import viper.silver.verifier.reasons.InsufficientPermission
 /**
   * Extracts samples from verification errors.
   */
-trait SampleExtractor extends AbstractTeacher {
+trait SampleExtractor extends AbstractTeacher with LazyLogging {
   /**
     * Type shortcut for counter examples.
     */
@@ -28,6 +36,8 @@ trait SampleExtractor extends AbstractTeacher {
     * @return The extracted sample.
     */
   def framingSample(error: VerificationError, query: Query): Sample = {
+    logger.info(error.toString)
+
     // get counter example and offending location
     val (counter, offending, Some(location)) = extractInformation[ast.LocationAccess](error)
 
@@ -41,6 +51,7 @@ trait SampleExtractor extends AbstractTeacher {
     }
 
     // get state abstraction
+    // TODO: Debug abstraction
     val abstraction = {
       // get state and model
       val model = ModelEvaluator(counter.model)
@@ -48,7 +59,10 @@ trait SampleExtractor extends AbstractTeacher {
       val state = StateEvaluator(Some(label), counter.state, model)
       val snapshot = Snapshot(instance, state)
       // compute abstraction
-      snapshot.formalAbstraction
+      val primary = snapshot.formalAtomicAbstraction
+      // debug abstraction
+      val secondary = SnapshotAbstraction(snapshot)
+      DebugAbstraction(primary, secondary)
     }
 
     // create and return sample
@@ -66,6 +80,8 @@ trait SampleExtractor extends AbstractTeacher {
     * @return The extracted sample.
     */
   def basicSample(error: VerificationError, query: Query): Sample = {
+    logger.info(error.toString)
+
     // get counter example, offending location, and context info
     val (counter, offending, info) = extractInformation[Instance](error)
 
@@ -117,23 +133,56 @@ trait SampleExtractor extends AbstractTeacher {
       .map { currentSnapshot =>
         // abstraction
         val abstraction = {
-          val currentAbstraction = currentSnapshot.formalAbstraction
+          val currentAbstraction = currentSnapshot.formalAtomicAbstraction
           otherSnapshots.foldLeft(currentAbstraction) {
             case (combined, otherSnapshot) =>
               val adaptor = Adaptor(otherSnapshot.state, currentSnapshot)
-              val otherAbstraction = otherSnapshot.actualAbstraction
+              val otherAbstraction = otherSnapshot.actualAtomicAbstraction
               val adapted = adaptor.adaptAbstraction(otherAbstraction)
               combined.meet(adapted)
           }
         }
         // locations
         val locations = {
+          // check whether variable was used to save an expression
+
+          def bar(x: ast.Exp): ast.Exp =
+            x match {
+              case variable: ast.LocalVar =>
+                val info = variable.info.getUniqueInfo[Previous]
+                info match {
+                  case Some(Previous(value)) => value
+                  case _ => variable
+                }
+              case ast.FieldAccess(receiver, field) =>
+                makeField(bar(receiver), field)
+              case _ =>
+                x
+            }
+
+          def foo(access: ast.LocationAccess): ast.LocationAccess =
+            access match {
+              case ast.FieldAccess(receiver, field) =>
+                makeField(bar(receiver), field)
+              case ast.PredicateAccess(arguments, name) =>
+                val x = arguments.map { argument => bar(argument) }
+                makePredicate(name, x)
+            }
+
+          val x = foo(currentLocation)
+
           val adaptor = Adaptor(failState, currentSnapshot)
-          adaptor.adaptLocation(currentLocation)
+          adaptor.adaptLocation(x)
         }
         // create record
         val specification = currentSnapshot.specification
-        Record(specification, abstraction, locations)
+        // TODO: Eventually replace with partition abstraction.
+        // inject snapshot abstraction for debug purposes
+        val debug = {
+          val secondary = SnapshotAbstraction(currentSnapshot)
+          DebugAbstraction(abstraction, secondary)
+        }
+        Record(specification, debug, locations)
       }
 
     // lazily compute all other records
@@ -143,10 +192,10 @@ trait SampleExtractor extends AbstractTeacher {
         val adaptor = Adaptor(failState, otherSnapshot)
         // abstraction
         val abstraction = {
-          val otherAbstraction = otherSnapshot.formalAbstraction
+          val otherAbstraction = otherSnapshot.formalAtomicAbstraction
           currentSnapshot.foldLeft(otherAbstraction) {
             case (combined, currentSnapshot) =>
-              val currentAbstraction = currentSnapshot.actualAbstraction
+              val currentAbstraction = currentSnapshot.actualAtomicAbstraction
               val adapted = adaptor.adaptAbstraction(currentAbstraction)
               combined.meet(adapted)
           }
@@ -154,7 +203,13 @@ trait SampleExtractor extends AbstractTeacher {
         // create record
         val specification = otherSnapshot.specification
         val locations = adaptor.adaptLocation(currentLocation)
-        Record(specification, abstraction, locations)
+        // TODO: Eventually replace with partition abstraction.
+        // inject snapshot abstraction for debug purposes
+        val debug = {
+          val secondary = SnapshotAbstraction(otherSnapshot)
+          DebugAbstraction(abstraction, secondary)
+        }
+        Record(specification, debug, locations)
       }
 
     // create sample
@@ -196,7 +251,7 @@ trait SampleExtractor extends AbstractTeacher {
     }
     // extract context info
     val info = error.offendingNode match {
-      case node: ast.Infoed => ValueInfo.valueOption[T](node)
+      case node: ast.Infoed => Infos.valueOption[T](node)
       case _ => None
     }
     // return information

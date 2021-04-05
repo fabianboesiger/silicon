@@ -1,9 +1,15 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.builder
 
 import rpi.inference.context.{Context, Instance, LoopCheck}
 import rpi.inference.Hypothesis
-import rpi.inference.annotation.{Annotation, Hint}
-import rpi.util.ast.{Cut, ValueInfo}
+import rpi.inference.annotation.Hint
+import rpi.util.ast._
 import viper.silver.ast
 
 /**
@@ -11,7 +17,7 @@ import viper.silver.ast
   *
   * @param context The inference context.
   */
-class ProgramExtender(protected val context: Context) extends CheckExtender with Folding {
+class ProgramExtender(protected val context: Context) extends CheckExtender with Folding with Simplification {
   /**
     * Return the input program annotated with the inferred specifications provided by the given hypothesis.
     *
@@ -30,8 +36,16 @@ class ProgramExtender(protected val context: Context) extends CheckExtender with
         val postconditions = check.postcondition.all(hypothesis)
         // process body
         val body = processCheck(check, hypothesis)
+        // make sure all variables are declared (i.e. the ones used to save expressions)
+        val undeclared = body
+          .undeclLocalVars
+          .map { variable => ast.LocalVarDecl(variable.name, variable.typ)() }
+          .diff(method.scopedDecls)
+        val transformed =
+          if (undeclared.isEmpty) body
+          else body.copy(scopedDecls = body.scopedDecls ++ undeclared)(body.pos, body.info, body.errT)
         // update method
-        method.copy(pres = preconditions, posts = postconditions, body = Some(body))(method.pos, method.info, method.errT)
+        method.copy(pres = preconditions, posts = postconditions, body = Some(transformed))(method.pos, method.info, method.errT)
       }
     // update program
     buildProgram(methods, hypothesis)
@@ -47,7 +61,7 @@ class ProgramExtender(protected val context: Context) extends CheckExtender with
   override protected def processCut(cut: Cut)(implicit hypothesis: Hypothesis): Unit =
     cut.statement match {
       case loop: ast.While =>
-        val check = ValueInfo.value[LoopCheck](cut)
+        val check = Infos.value[LoopCheck](cut)
         val invariants = check.invariant.all(hypothesis)
         val body = processCheck(check, hypothesis)
         // add updated loop
@@ -66,11 +80,18 @@ class ProgramExtender(protected val context: Context) extends CheckExtender with
           case placeholder: ast.PredicateAccessPredicate =>
             if (configuration.useAnnotations() || configuration.verifyWithHints()) {
               // get specification
-              val instance = ValueInfo.value[Instance](placeholder)
+              val instance = Infos.value[Instance](placeholder)
               val body = hypothesis.getPredicateBody(instance)
               // unfold
-              val maxDepth = check.depth(hypothesis)
-              unfold(body)(maxDepth, hypothesis)
+              simplified {
+                if (configuration.useAnnotations() || configuration.verifyWithHints()) {
+                  val maxDepth = check.depth(hypothesis)
+                  unfoldWithHints(body, hints)(maxDepth, hypothesis)
+                } else {
+                  val maxDepth = check.depth(hypothesis)
+                  unfold(body)(maxDepth, hypothesis)
+                }
+              }
             }
           case _ => // do nothing
         }
@@ -78,15 +99,17 @@ class ProgramExtender(protected val context: Context) extends CheckExtender with
         expression match {
           case placeholder: ast.PredicateAccessPredicate =>
             // get specification
-            val instance = ValueInfo.value[Instance](placeholder)
+            val instance = Infos.value[Instance](placeholder)
             val body = hypothesis.getPredicateBody(instance)
             // fold
-            if (configuration.useAnnotations() || configuration.verifyWithHints()) {
-              val maxDepth = check.depth(hypothesis)
-              foldWithAnnotations(body, hints)(maxDepth, hypothesis)
-            } else {
-              val maxDepth = configuration.heuristicsFoldDepth()
-              fold(body)(maxDepth, hypothesis)
+            simplified {
+              if (configuration.useAnnotations() || configuration.verifyWithHints()) {
+                val maxDepth = check.depth(hypothesis)
+                foldWithHints(body, hints)(maxDepth, hypothesis)
+              } else {
+                val maxDepth = configuration.heuristicsFoldDepth()
+                fold(body)(maxDepth, hypothesis)
+              }
             }
           case _ => // do nothing
         }

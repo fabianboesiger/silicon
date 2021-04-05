@@ -1,6 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.util.ast
 
-import rpi.Names
 import viper.silver.ast
 import viper.silver.ast.utility.rewriter.Traverse
 
@@ -111,7 +116,7 @@ object Expressions {
     * @return The conjunction.
     */
   @inline
-  def makeAnd(left: ast.Exp, right: ast.Exp): ast.Exp =
+  def makeAnd(left: ast.Exp, right: ast.Exp): ast.And =
     ast.And(left, right)()
 
   /**
@@ -160,8 +165,8 @@ object Expressions {
     makeVariable(name, ast.Ref)
 
   @inline
-  def makeVariable(name: String, typ: ast.Type): ast.LocalVar =
-    ast.LocalVar(name, typ)()
+  def makeVariable(name: String, typ: ast.Type, info: ast.Info = ast.NoInfo): ast.LocalVar =
+    ast.LocalVar(name, typ)(info = info)
 
   /**
     * Returns an equality expression that compares the two given expressions.
@@ -203,19 +208,12 @@ object Expressions {
     ast.NullLit()()
 
   @inline
-  def makeCall(method: ast.Method, arguments: Seq[ast.Exp]): ast.MethodCall =
-    ast.MethodCall(method, arguments, Seq.empty)()
+  def makeCall(method: ast.Method, arguments: Seq[ast.Exp], info: ast.Info = ast.NoInfo): ast.MethodCall =
+    ast.MethodCall(method, arguments, Seq.empty)(info = info)
 
   @inline
-  @deprecated
-  def ms(from: ast.Exp, to: ast.Exp): ast.PredicateAccessPredicate =
-    makeRecursive(Seq(from, to))
-
-  @deprecated
-  private def makeRecursive(arguments: Seq[ast.Exp]): ast.PredicateAccessPredicate = {
-    val access = ast.PredicateAccess(arguments, Names.recursive)()
-    makeResource(access)
-  }
+  def makeField(receiver: ast.Exp, name: String, typ: ast.Type): ast.FieldAccess =
+    makeField(receiver, ast.Field(name, typ)())
 
   @inline
   def makeField(receiver: ast.Exp, field: ast.Field): ast.FieldAccess =
@@ -250,6 +248,14 @@ object Expressions {
     */
   private def simplification(expression: ast.Node): ast.Node =
     expression match {
+      // simplify equality
+      case ast.EqCmp(left, right) =>
+        if (left == right) makeTrue
+        else expression
+      // simplify inequality
+      case ast.NeCmp(left, right) =>
+        if (left == right) makeFalse
+        else expression
       // simplify conjunction
       case ast.Not(argument) => argument match {
         case ast.TrueLit() => makeFalse
@@ -260,13 +266,8 @@ object Expressions {
         case _ => expression
       }
       // simplify conjunction
-      case ast.And(left, right) => (left, right) match {
-        case (ast.TrueLit(), _) => right
-        case (_, ast.TrueLit()) => left
-        case (ast.FalseLit(), _) => makeFalse
-        case (_, ast.FalseLit()) => makeFalse
-        case _ => expression
-      }
+      case and: ast.And =>
+        simplifyAnd(and)
       // simplify disjunction
       case ast.Or(left, right) => (left, right) match {
         case (ast.TrueLit(), _) => makeTrue
@@ -283,5 +284,14 @@ object Expressions {
       }
       // do nothing by default
       case _ => expression
+    }
+
+  def simplifyAnd(and: ast.And): ast.Exp =
+    (and.left, and.right) match {
+      case (ast.TrueLit(), _) => and.right
+      case (_, ast.TrueLit()) => and.left
+      case (ast.FalseLit(), _) => makeFalse
+      case (_, ast.FalseLit()) => makeFalse
+      case _ => and
     }
 }

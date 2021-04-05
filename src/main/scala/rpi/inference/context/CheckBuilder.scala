@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference.context
 
 import rpi.Names
@@ -5,6 +11,7 @@ import rpi.builder.ProgramBuilder
 import rpi.inference.annotation.Hint
 import rpi.util.Namespace
 import rpi.util.ast.Expressions._
+import rpi.util.ast.Previous
 import rpi.util.ast.Statements._
 import viper.silver.ast
 
@@ -69,15 +76,18 @@ class CheckBuilder(program: ast.Program) extends ProgramBuilder {
   }
 
   private def createBody(check: MethodCheck, sequence: ast.Seqn, declarations: Seq[ast.LocalVarDecl]): Unit = {
-    clear()
     val body = makeScope {
       // inhale method preconditions
-      hinted(addInhale(check.precondition))
+      hinted(Seq.empty) {
+        addInhale(check.precondition)
+      }
       // process body
-      val processed = processSequence(sequence, declarations)
+      val (processed, hints) = processSequence(sequence, declarations)
       addStatement(processed)
       // exhale method postconditions
-      hinted(addExhale(check.postcondition))
+      hinted(hints) {
+        addExhale(check.postcondition)
+      }
     }
     check.setBody(body)
   }
@@ -88,18 +98,19 @@ class CheckBuilder(program: ast.Program) extends ProgramBuilder {
     val invariant = createSpecification(Names.invariant, declarations, loop.invs)
     val check = new LoopCheck(name, invariant)
     // add check body
-    clear()
     val body = makeScope {
       // inhale loop invariants and condition
-      hinted {
+      hinted(Seq.empty) {
         addInhale(invariant)
         addInhale(loop.cond)
       }
       // process body
-      val processed = processSequence(loop.body, declarations)
+      val (processed, hints) = processSequence(loop.body, declarations)
       addStatement(processed)
       // exhale loop invariants
-      hinted(addExhale(invariant))
+      hinted(hints) {
+        addExhale(invariant)
+      }
     }
     check.setBody(body)
     // add and return check
@@ -107,31 +118,43 @@ class CheckBuilder(program: ast.Program) extends ProgramBuilder {
     check
   }
 
-  private def processSequence(sequence: ast.Seqn, declarations: Seq[ast.LocalVarDecl]): ast.Seqn = {
-    val variables = sequence.scopedDecls.collect { case variable: ast.LocalVarDecl => variable }
-    val all = declarations ++ variables
+  /**
+    * Processes the given sequence and returns the updated sequence and the list of hints that were collected.
+    *
+    * @param sequence     The sequence to process.
+    * @param declarations The declarations.
+    * @return The updated sequence and the collected hints.
+    */
+  private def processSequence(sequence: ast.Seqn, declarations: Seq[ast.LocalVarDecl]): (ast.Seqn, Seq[Hint]) = {
+    // save and reset hints
+    val savedHints = this.hints
+    this.hints = Seq.empty
+    // process and update sequence
     val statements = scoped {
+      // add scoped declarations
+      val variables = sequence.scopedDecls.collect { case variable: ast.LocalVarDecl => variable }
+      val all = declarations ++ variables
+      // process statements
       sequence.ss.foreach { statement => processStatement(statement, all) }
     }
-    sequence.copy(ss = statements)(sequence.pos, sequence.info, sequence.errT)
+    val processed = sequence.copy(ss = statements)(sequence.pos, sequence.info, sequence.errT)
+    // extract and restore hints
+    val hints = this.hints
+    this.hints = savedHints
+    // return processed sequence and hints
+    (processed, hints)
   }
 
   private def processStatement(statement: ast.Stmt, declarations: Seq[ast.LocalVarDecl]): Unit =
     statement match {
       case sequence: ast.Seqn =>
-        val processed = processSequence(sequence, declarations)
+        val (processed, innerHints) = processSequence(sequence, declarations)
         addStatement(processed)
+        innerHints.foreach { hint => addHint(hint) }
       case original@ast.If(_, thenBranch, elseBranch) =>
-        // save hints
-        val outerHints = consumeHints()
-        // process then branch
-        val thenProcessed = processSequence(thenBranch, declarations)
-        val thenHints = consumeHints()
-        // process else branch
-        val elseProcessed = processSequence(elseBranch, declarations)
-        val elseHints = consumeHints()
-        // restore hints
-        hints = outerHints
+        // process branches
+        val (thenProcessed, thenHints) = processSequence(thenBranch, declarations)
+        val (elseProcessed, elseHints) = processSequence(elseBranch, declarations)
         // handle condition
         val condition =
           if (thenHints.isEmpty && elseHints.isEmpty) original.cond
@@ -150,19 +173,20 @@ class CheckBuilder(program: ast.Program) extends ProgramBuilder {
         // loop instrumentation
         val check = createCheck(original, declarations)
         // exhale invariant
-        hinted(addExhale(check.invariant))
+        hinted(hints) {
+          addExhale(check.invariant)
+        }
         // cut loop (havoc written variables)
-        // TODO: havoc hints
         addCut(original, check)
         // inhale invariant and negation of loop condition
-        hinted {
+        hinted(hints) {
           addInhale(check.invariant)
           addInhale(makeNot(condition))
         }
       case original@ast.MethodCall(name, arguments, returns) =>
         if (Names.isAnnotation(name)) {
           val argument = arguments.head
-          val old = save(argument)
+          val old = save(argument, Previous(argument))
           val hint = Hint(name, argument, old)
           addHint(hint)
         } else {
@@ -186,20 +210,19 @@ class CheckBuilder(program: ast.Program) extends ProgramBuilder {
           // method call instrumentation
           val check = methods(name)
           // exhale method precondition
-          hinted(addExhale(check.precondition(variables)))
+          hinted(hints) {
+            addExhale(check.precondition(variables))
+          }
           // havoc return variables
-          // TODO: havoc hints
           addCut(adapted, check)
           // inhale method postcondition
-          hinted(addInhale(check.postcondition(variables ++ returns)))
+          hinted(hints) {
+            addInhale(check.postcondition(variables ++ returns))
+          }
         }
       case _ =>
         addStatement(statement)
     }
-
-  private def clear(): Unit = {
-    hints = Seq.empty
-  }
 
   private def asVariable(expression: ast.Exp): ast.LocalVar =
     expression match {
@@ -207,10 +230,10 @@ class CheckBuilder(program: ast.Program) extends ProgramBuilder {
       case _ => ???
     }
 
-  private def save(expression: ast.Exp): ast.LocalVar = {
+  private def save(expression: ast.Exp, info: ast.Info = ast.NoInfo): ast.LocalVar = {
     // create variable
     val name = namespace.uniqueIdentifier("t", Some(0))
-    val variable = makeVariable(name, expression.typ)
+    val variable = makeVariable(name, expression.typ, info)
     // add assignment
     addAssign(variable, expression)
     // return variable
@@ -223,21 +246,27 @@ class CheckBuilder(program: ast.Program) extends ProgramBuilder {
   private def addExhale(instance: Instance): Unit =
     instance.all.foreach { expression => addExhale(expression) }
 
-  private def hinted(generate: => Unit): Unit = {
-    val hints = this.hints
+  private def hinted(hints: Seq[Hint])(generate: => Unit): Unit = {
     val body = makeScope(generate)
     addStatement(makeHinted(body, hints))
   }
 
-  private def addCut(statement: ast.Stmt, check: Check): Unit =
-    addStatement(makeCut(statement, check))
+  private def addCut(statement: ast.Stmt, check: Check): Unit = {
+    // create cut
+    val cut = makeCut(statement, check)
+    // havoc hints
+    hints = hints.filter { hint =>
+      hint.argument match {
+        case variable: ast.LocalVar =>
+          !cut.havocked.contains(variable)
+        case _ =>
+          true
+      }
+    }
+    // add cut
+    addStatement(cut)
+  }
 
   private def addHint(hint: Hint): Unit =
     hints = hints :+ hint
-
-  private def consumeHints(): Seq[Hint] = {
-    val consumed = hints
-    hints = Seq.empty
-    consumed
-  }
 }

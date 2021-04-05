@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi
 
 import org.rogach.scallop.{ScallopConf, ScallopOption}
@@ -19,7 +25,7 @@ class Configuration(arguments: Seq[String]) extends ScallopConf(arguments) {
     opt[Int](
       name = "maxRounds",
       descr = "The number of rounds after which the learner gets exhausted and gives up.",
-      default = Some(10))
+      default = Some(20))
 
   val maxClauses: ScallopOption[Int] =
     opt[Int](
@@ -102,6 +108,12 @@ class Configuration(arguments: Seq[String]) extends ScallopConf(arguments) {
     opt[Boolean](
       name = "verifyWithAnnotations",
       hidden = true)
+
+  val logLevel: ScallopOption[String] =
+    opt[String](
+      name="logLevel",
+      descr = "One of the following log levels: ALL, TRACE, DEBUG, INFO, WARN, ERROR, OFF.",
+      default = None)
 
   val path: ScallopOption[String] =
     trailArg[String](

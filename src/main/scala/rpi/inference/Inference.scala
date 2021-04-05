@@ -1,5 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference
 
+import ch.qos.logback.classic.{Level, Logger}
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.LoggerFactory
 import rpi.builder.ProgramExtender
 import rpi.inference.context.Context
 import rpi.Configuration
@@ -16,11 +25,9 @@ import scala.annotation.tailrec
   *
   * @param configuration The configuration.
   */
-class Inference(val configuration: Configuration) {
-  /**
-    * The number of rounds after which the learner gets exhausted and gives up.
-    */
-  val maxRounds: Int = configuration.maxRounds()
+class Inference(val configuration: Configuration) extends LazyLogging {
+
+  import configuration._
 
   /**
     * The instance of the silicon verifier used to generate the samples.
@@ -43,8 +50,23 @@ class Inference(val configuration: Configuration) {
     * Starts the inference and all of its subcomponents.
     */
   def start(): Unit = {
+    // set log level
+    configuration
+      .logLevel
+      .foreach { option => setLogLevel(org.slf4j.Logger.ROOT_LOGGER_NAME, Level.toLevel(option)) }
+
+    // debug logging
+    setLogLevel("rpi.inference.learner.GuardEncoder", Level.DEBUG)
+    setLogLevel("rpi.inference.learner.Smt", Level.DEBUG)
+
     verifier.start()
   }
+
+  private def setLogLevel(name: String, level: Level): Unit =
+    LoggerFactory
+      .getLogger(name)
+      .asInstanceOf[Logger]
+      .setLevel(level)
 
   /**
     * Stops the inference and all of its subcomponents.
@@ -69,25 +91,38 @@ class Inference(val configuration: Configuration) {
     teacher.start()
     learner.start()
 
+    /**
+      * Helper method that iteratively refines the hypothesis.
+      *
+      * @param round The current round.
+      * @return The ultimate hypothesis.
+      */
     @tailrec
-    def infer(rounds: Int): Hypothesis = {
+    def infer(round: Int = 0): Hypothesis = {
       // compute hypothesis
       val hypothesis = learner.hypothesis
-      if (rounds == 0) hypothesis
+      logger.info("--- current hypothesis ---")
+      hypothesis.predicates.foreach { predicate => logger.info(predicate.toString()) }
+      if (round >= maxRounds()) hypothesis
       else {
+        logger.info(s"\n----- start round #$round -----\n")
         // check hypothesis
         val samples = teacher.check(hypothesis)
         if (samples.isEmpty) hypothesis
         else {
           // add samples and iterate
-          samples.foreach { sample => learner.addSample(sample) }
-          infer(rounds - 1)
+          logger.info("--- add samples ---")
+          samples.foreach { sample =>
+            logger.info(sample.toString)
+            learner.addSample(sample)
+          }
+          infer(round + 1)
         }
       }
     }
 
     // infer specifications
-    val hypothesis = infer(maxRounds)
+    val hypothesis = infer()
 
     // stop teacher and learner
     teacher.stop()

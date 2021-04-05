@@ -1,6 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference
 
 import rpi.inference.context.Specification
+import rpi.inference.teacher.state.Snapshot
 import rpi.util.SeqMap
 import rpi.util.ast.Expressions._
 import viper.silver.ast
@@ -64,6 +71,34 @@ trait Abstraction {
     atoms.map { atom => value(atom) }
 }
 
+case class DebugAbstraction[A <: Abstraction, B <: Abstraction](primary: A, secondary: B) extends Abstraction {
+  override def value(atom: Exp): Option[Boolean] = {
+    val primaryValue = primary.value(atom)
+    val secondaryValue = secondary.value(atom)
+    // compare and return primary value
+    primaryValue.foreach { _ => assert(primaryValue == secondaryValue) }
+    secondaryValue
+  }
+
+  override def toString: String =
+    secondary.toString
+}
+
+case class SnapshotAbstraction(snapshot: Snapshot) extends Abstraction {
+  override def value(atom: Exp): Option[Boolean] = {
+    val actual = snapshot.instance.toActual(atom)
+    val value = snapshot.state.evaluateBoolean(actual)
+    Some(value)
+  }
+
+  override def toString: String =
+    snapshot
+      .partitions
+      .map { partition => partition.mkString("{", ", ", "}") }
+      .mkString("{", ", ", "}")
+}
+
+@deprecated
 case class PartitionAbstraction(partitions: Map[ast.Exp, Int]) extends Abstraction {
   override def value(atom: Exp): Option[Boolean] =
     atom match {

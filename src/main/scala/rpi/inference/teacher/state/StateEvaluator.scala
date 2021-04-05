@@ -1,5 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference.teacher.state
 
+import rpi.util.ast.Expressions.makeVariable
+import rpi.util.ast.{Infos, Previous}
 import viper.silicon.resources.FieldID
 import viper.silicon.state.{BasicChunk, State, terms}
 import viper.silicon.state.terms.sorts
@@ -21,12 +29,17 @@ case class StateEvaluator(label: Option[String], state: State, model: ModelEvalu
     * @return The value.
     */
   private def store(variable: ast.LocalVar): String = {
+    // adapt variable to state (if necessary)
     val adapted = label match {
-      case Some(label) =>
+      case Some(label) if !Infos.isSaved(variable) =>
+        // adapt variable
         val name = s"${label}_${variable.name}"
-        ast.LocalVar(name, variable.typ)()
-      case None => variable
+        makeVariable(name, variable.typ)
+      case _ =>
+        // no adaption needed
+        variable
     }
+    // evaluate variable
     val term = state.g(adapted)
     model.evaluateReference(term)
   }

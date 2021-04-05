@@ -1,7 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference.teacher.state
 
 import rpi.inference.context.{Instance, Specification}
 import rpi.inference.AtomicAbstraction
+import rpi.util.ast.Expressions._
 import rpi.util.{Collections, SetMap}
 import viper.silver.ast
 
@@ -31,8 +38,7 @@ case class Snapshot(instance: Instance, state: StateEvaluator) {
             .getOrElse(key, Map.empty)
             .foldLeft(map1) {
               case (map2, (name, value)) =>
-                val field = ast.Field(name, ast.Ref)()
-                val extended = paths.map { path => ast.FieldAccess(path, field)(): ast.Exp }
+                val extended = paths.map { path => makeField(path, name, ast.Ref): ast.Exp }
                 SetMap.addAll(map2, value, extended)
             }
         }
@@ -60,13 +66,13 @@ case class Snapshot(instance: Instance, state: StateEvaluator) {
 
   // reachability map with null literal
   private[state] lazy val nullableReachability = {
-    val nil = ast.NullLit()()
+    val nil = makeNull
     val value = state.evaluateReference(nil)
     SetMap.add(reachability, value, nil)
   }
 
   // lazily computed abstraction
-  private lazy val abstraction: AtomicAbstraction = {
+  private lazy val atomicAbstraction: AtomicAbstraction = {
     val values = instance
       .formalAtoms
       .map { atom =>
@@ -87,14 +93,19 @@ case class Snapshot(instance: Instance, state: StateEvaluator) {
     *
     * @return The formal state abstraction.
     */
-  def formalAbstraction: AtomicAbstraction = abstraction
+  def formalAtomicAbstraction: AtomicAbstraction =
+    atomicAbstraction
 
   /**
     * Returns the state abstraction in terms of the actual arguments.
     *
     * @return The actual state abstraction.
     */
-  def actualAbstraction: AtomicAbstraction = instance.toActual(abstraction)
+  def actualAtomicAbstraction: AtomicAbstraction =
+    instance.toActual(atomicAbstraction)
+
+  def partitions: Iterable[Set[ast.Exp]] =
+    nullableReachability.map { case (_, set) => set }
 }
 
 /**
@@ -114,12 +125,12 @@ case class Adaptor(source: StateEvaluator, target: Snapshot) {
     location match {
       case ast.FieldAccess(receiver, field) =>
         val adaptedReceiver = adaptReference(receiver, nonnull = true)
-        adaptedReceiver.map { adapted => ast.FieldAccess(adapted, field)() }
+        adaptedReceiver.map { adapted => makeField(adapted, field) }
       case ast.PredicateAccess(arguments, name) =>
         val adaptedArguments = arguments.map { argument => adaptReference(argument) }
         Collections
           .product(adaptedArguments)
-          .map { combination => ast.PredicateAccess(combination, name)() }
+          .map { combination => makePredicate(name, combination) }
     }
 
   /**
@@ -143,9 +154,9 @@ case class Adaptor(source: StateEvaluator, target: Snapshot) {
       adaptReference(expression)
     } else expression match {
       case ast.EqCmp(left, right) =>
-        for (l <- adapt(left); r <- adapt(right)) yield ast.EqCmp(l, r)()
+        for (l <- adapt(left); r <- adapt(right)) yield makeEquality(l, r)
       case ast.NeCmp(left, right) =>
-        for (l <- adapt(left); r <- adapt(right)) yield ast.NeCmp(l, r)()
+        for (l <- adapt(left); r <- adapt(right)) yield makeInequality(l, r)
     }
 
   private def adaptReference(expression: ast.Exp, nonnull: Boolean = false): Set[ast.Exp] = {

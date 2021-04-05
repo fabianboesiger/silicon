@@ -1,6 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference.learner
 
-import rpi.Names
+import com.typesafe.scalalogging.LazyLogging
 import rpi.inference.context.Context
 import rpi.inference._
 import rpi.inference.learner.template._
@@ -12,12 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class GuardEncoder(context: Context, templates: Seq[Template]) {
-  /**
-    * The maximal number of clauses that may be used for a guard.
-    */
-  private val maxClauses = context.configuration.maxClauses()
-
+class GuardEncoder(context: Context, templates: Seq[Template]) extends LazyLogging {
   /**
     * Type shortcut for an effective guard.
     *
@@ -31,10 +32,21 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
     */
   private type EffectiveMap = Map[ast.LocationAccess, Effective]
 
+  /**
+    * The maximal number of clauses that may be used for a guard.
+    */
+  @inline
+  private def maxClauses: Int =
+    context.configuration.maxClauses()
+
+  /**
+    * The map from predicate names to the corresponding predicate template.
+    */
   private val predicates: Map[String, PredicateTemplate] =
     templates
       .flatMap {
         case template: PredicateTemplate =>
+          logger.info(template.toString)
           Some(template.name -> template)
         case _ => None
       }
@@ -150,7 +162,7 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
           }
           // add map
           Some(template.name -> map)
-        case template =>
+        case _ =>
           None
       }
       .toMap
@@ -168,6 +180,22 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
     * @return The constraints representing the encodings of the samples.
     */
   def encodeSamples(samples: Seq[Sample]): Seq[ast.Exp] = {
+    if (logger.underlying.isDebugEnabled) {
+      // log effective guards
+      logger.debug("effective guards:")
+      guards.foreach { case (specification, map) =>
+        logger.debug(s"  $specification:")
+        map.foreach { case (location, effective) =>
+          logger.debug(s"    $location:")
+          effective.foreach { choice =>
+            logger.debug(s"      ${choice.mkString(" &&")}")
+          }
+        }
+      }
+      logger.debug("encode samples:")
+      samples.foreach { sample => logger.debug(sample.toString) }
+    }
+
     // the buffer that accumulates constraints
     implicit val buffer: mutable.Buffer[ast.Exp] = ListBuffer.empty
 
@@ -240,8 +268,8 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
       .zipWithIndex
       .map { case (record, index) =>
         // note: every other record is in negative position
-        val adapted = if (index % 2 == 0) default else !default
-        encodeRecord(record, adapted)
+        val adaptedDefault = if (index % 2 == 0) default else !default
+        encodeRecord(record, adaptedDefault)
       }
 
     // encode framing constraints
@@ -283,6 +311,8 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
                 case Some(false) => makeFalse
                 case _ =>
                   // TODO: Maybe try model evaluation here?
+                  logger.info("shit happens")
+                  ???
                   makeLiteral(default)
               }
           }
@@ -405,9 +435,21 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
   }
 
   object View {
+    /**
+      * Returns the empty view that does not assign any expression to any variable.
+      *
+      * @return The empty view.
+      */
     def empty: View =
       View(Map.empty)
 
+    /**
+      * Creates the view for the given template with the given arguments.
+      *
+      * @param template  The template.
+      * @param arguments The arguments.
+      * @return The view.
+      */
     def create(template: Template, arguments: Seq[ast.Exp]): View = {
       val names = template
         .specification
@@ -417,9 +459,25 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
     }
   }
 
+  /**
+    * A view mapping variable names to the expressions with which they are instantiated.
+    *
+    * @param map The map.
+    */
   case class View(map: Map[String, ast.Exp]) {
+    /**
+      * Returns whether the view is empty.
+      *
+      * @return True if the view is empty.
+      */
     def isEmpty: Boolean = map.isEmpty
 
+    /**
+      * Adapt the expression according to the view.
+      *
+      * @param expression The expression to adapt.
+      * @return The adapted expression.
+      */
     def adapt(expression: ast.Exp): ast.Exp =
       if (isEmpty) expression
       else expression.transform {
@@ -427,8 +485,15 @@ class GuardEncoder(context: Context, templates: Seq[Template]) {
           map.getOrElse(name, variable)
       }
 
-    def updated(name: String, value: ast.Exp): View =
-      View(map.updated(name, value))
+    /**
+      * Updates the view by mapping the variable with the given name to the given expression.
+      *
+      * @param name       The name of the variable.
+      * @param expression The expression.
+      * @return The updated view.
+      */
+    def updated(name: String, expression: ast.Exp): View =
+      View(map.updated(name, expression))
   }
 
 }

@@ -1,9 +1,15 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi.inference.annotation
 
 import rpi.inference.Hypothesis
 import rpi.inference.context.Instance
 import rpi.util.ast.Expressions._
-import rpi.util.ast.{Cut, Hinted, ValueInfo}
+import rpi.util.ast._
 import viper.silver.ast
 
 /**
@@ -49,6 +55,8 @@ object AccessAnalysis {
         fields(argument)
       case ast.BinExp(left, right) =>
         fields(left) ++ fields(right)
+      case ast.FieldAccessPredicate(field, _) =>
+        Seq(field)
       case field: ast.FieldAccess =>
         Seq(field)
       case _ =>
@@ -164,7 +172,7 @@ object AccessAnalysis {
         case ast.Exhale(expression) =>
           expression match {
             case placeholder: ast.PredicateAccessPredicate =>
-              val instance = ValueInfo.value[Instance](placeholder)
+              val instance = Infos.value[Instance](placeholder)
               self.read(instance)
             case _ =>
               self.read(expression)

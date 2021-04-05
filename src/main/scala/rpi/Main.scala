@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2011-2021 ETH Zurich.
+
 package rpi
 
 import rpi.inference.PrintRunner
@@ -28,7 +34,7 @@ object Main extends PrintRunner {
     * The options for an inference with predicate segments.
     */
   val segmentsOptions: Seq[String] =
-    annotationsOptions ++ Seq("--useSegments")
+    annotationsOptions ++ Seq("--useSegments", "--restrictTruncation")
 
   /**
     * The main method, i.e., the entry point of the inference.
@@ -36,6 +42,6 @@ object Main extends PrintRunner {
     * @param arguments The arguments to the inference.
     */
   def main(arguments: Array[String]): Unit = {
-    run(annotationsOptions ++ arguments)
+    run(segmentsOptions ++ arguments)
   }
 }
