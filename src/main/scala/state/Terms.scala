@@ -13,6 +13,7 @@ import viper.silicon.common.collections.immutable.InsertionOrderedSet
 import viper.silicon.{Map, Stack, state, toMap}
 import viper.silicon.state.{Identifier, MagicWandChunk, MagicWandIdentifier, SortBasedIdentifier}
 import viper.silicon.verifier.Verifier
+import viper.silicon.annotation.flyweight
 
 sealed trait Node {
   def toString: String
@@ -36,49 +37,59 @@ object sorts {
   object Perm extends Sort { val id = Identifier("Perm"); override lazy val toString = id.toString }
   object Unit extends Sort { val id = Identifier("()");   override lazy val toString = id.toString }
 
+  @flyweight
   case class Seq(elementsSort: Sort) extends Sort {
     val id = Identifier(s"Seq[$elementsSort]")
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class Set(elementsSort: Sort) extends Sort {
     val id = Identifier(s"Set[$elementsSort]")
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class Multiset(elementsSort: Sort) extends Sort {
     val id = Identifier(s"Multiset[$elementsSort]")
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class Map(keySort: Sort, valueSort: Sort) extends Sort {
     val id = Identifier(s"Map[$keySort,$valueSort]")
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class UserSort(id: Identifier) extends Sort {
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class SMTSort(id: Identifier) extends Sort {
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class FieldValueFunction(codomainSort: Sort) extends Sort {
     val id = Identifier(s"FVF[$codomainSort]")
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class PredicateSnapFunction(codomainSort: Sort) extends Sort {
     val id = Identifier(s"PSF[$codomainSort]")
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class FieldPermFunction() extends Sort  {
     val id = Identifier("FPM")
     override lazy val toString = id.toString
   }
 
+  @flyweight
   case class PredicatePermFunction() extends Sort {
     val id = Identifier("PPM")
     override lazy val toString = id.toString
@@ -93,18 +104,22 @@ sealed trait Decl extends Node {
   def id: Identifier
 }
 
+@flyweight
 case class SortDecl(sort: Sort) extends Decl {
   val id: Identifier = sort.id
 }
 
+@flyweight
 case class FunctionDecl(func: Function) extends Decl {
   val id: Identifier = func.id
 }
 
+@flyweight
 case class SortWrapperDecl(from: Sort, to: Sort) extends Decl {
   val id: Identifier = SortWrapperId(from, to)
 }
 
+@flyweight
 case class MacroDecl(id: Identifier, args: Seq[Var], body: Term) extends Decl
 
 object ConstDecl extends (Var => Decl) { /* TODO: Inconsistent naming - Const vs Var */
@@ -141,35 +156,19 @@ object Function {
  *      (i.e. field) that indicates the kind of
  */
 
-trait GenericFunction[F <: Function] extends Function with StructuralEquality {
-  val equalityDefiningMembers = id +: argSorts :+ resultSort
-
-  def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort): F
-
+trait GenericFunction[F <: Function] extends Function {
   override lazy val toString =
     if (argSorts.isEmpty) s"$id: $resultSort"
     else s"$id: ${argSorts.mkString(" x ")} -> $resultSort"
 }
 
-trait GenericFunctionCompanion[F <: Function] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort): F
+@flyweight
+case class Fun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+    extends GenericFunction[Fun]
 
-  def apply(id: Identifier, argSort: Sort, resultSort: Sort): F =
+object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) {
+  def apply(id: Identifier, argSort: Sort, resultSort: Sort): Fun =
     apply(id, Seq(argSort), resultSort)
-
-  def unapply(fun: F): Some[(Identifier, Seq[Sort], Sort)] =
-    Some((fun.id, fun.argSorts, fun.resultSort))
-}
-
-class Fun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
-    extends GenericFunction[Fun] {
-
-  def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
-    Fun(id, argSorts, resultSort)
-}
-
-object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) with GenericFunctionCompanion[Fun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new Fun(id, argSorts, resultSort)
 }
 
 /* TODO: [18-12-2015 Malte] Since heap-dependent functions are represented by a separate class,
@@ -177,41 +176,37 @@ object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) with GenericFunctionCo
  *       toLimited/toStateless, and to remove the corresponding methods from the FunctionSupporter
  *       object.
  */
-class HeapDepFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
-    extends GenericFunction[HeapDepFun] {
+@flyweight
+case class HeapDepFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+    extends GenericFunction[HeapDepFun]
 
-  def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
-    HeapDepFun(id, argSorts, resultSort)
+object HeapDepFun extends ((Identifier, Seq[Sort], Sort) => HeapDepFun) {
+  def apply(id: Identifier, argSort: Sort, resultSort: Sort): HeapDepFun =
+    apply(id, Seq(argSort), resultSort)
 }
 
-object HeapDepFun extends ((Identifier, Seq[Sort], Sort) => HeapDepFun) with GenericFunctionCompanion[HeapDepFun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new HeapDepFun(id, argSorts, resultSort)
+@flyweight
+case class DomainFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+    extends GenericFunction[DomainFun]
+
+object DomainFun extends ((Identifier, Seq[Sort], Sort) => DomainFun) {
+  def apply(id: Identifier, argSort: Sort, resultSort: Sort): DomainFun =
+    apply(id, Seq(argSort), resultSort)
 }
 
-class DomainFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
-    extends GenericFunction[DomainFun] {
+@flyweight
+case class SMTFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+  extends GenericFunction[SMTFun]
 
-  def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
-    DomainFun(id, argSorts, resultSort)
+object SMTFun extends ((Identifier, Seq[Sort], Sort) => SMTFun) {
+  def apply(id: Identifier, argSort: Sort, resultSort: Sort): SMTFun =
+    apply(id, Seq(argSort), resultSort)
 }
 
-object DomainFun extends ((Identifier, Seq[Sort], Sort) => DomainFun) with GenericFunctionCompanion[DomainFun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new DomainFun(id, argSorts, resultSort)
-}
-
-class SMTFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
-  extends GenericFunction[SMTFun] {
-
-  def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) =
-   SMTFun(id, argSorts, resultSort)
-}
-
-object SMTFun extends ((Identifier, Seq[Sort], Sort) => SMTFun) with GenericFunctionCompanion[SMTFun] {
-  def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = new SMTFun(id, argSorts, resultSort)
-}
-
+@flyweight
 case class Macro(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) extends Applicable
 
+@flyweight
 case class Var(id: Identifier, sort: Sort) extends Function with Application[Var] {
   val applicable: Var = this
   val args: Seq[Term] = Seq.empty
@@ -221,15 +216,14 @@ case class Var(id: Identifier, sort: Sort) extends Function with Application[Var
   override lazy val toString = id.toString
 }
 
-class App(val applicable: Applicable, val args: Seq[Term])
-    extends Application[Applicable]
-       with StructuralEquality {
-       /*with PossibleTrigger*/
+@flyweight
+case class App(val applicable: Applicable, val args: Seq[Term])
+  extends Application[Applicable] {
+  /*with PossibleTrigger*/
 
   utils.assertExpectedSorts(applicable, args)
 
   val sort: Sort = applicable.resultSort
-  val equalityDefiningMembers = applicable +: args
   def copy(applicable: Applicable = applicable, args: Seq[Term] = args) = App(applicable, args)
 
   override lazy val toString =
@@ -238,9 +232,7 @@ class App(val applicable: Applicable, val args: Seq[Term])
 }
 
 object App extends ((Applicable, Seq[Term]) => App) {
-  def apply(applicable: Applicable, args: Seq[Term]) = new App(applicable, args)
-  def apply(applicable: Applicable, arg: Term) = new App(applicable, Seq(arg))
-  def unapply(app: App) = Some((app.applicable, app.args))
+  def apply(applicable: Applicable, arg: Term): App = App(applicable, Seq(arg))
 }
 
 /*
@@ -422,6 +414,7 @@ case object Unit extends SnapshotTerm with Literal {
   override lazy val toString = "_"
 }
 
+@flyweight
 case class IntLiteral(n: BigInt) extends ArithmeticTerm with Literal {
   def +(m: Int) = IntLiteral(n + m)
   def -(m: Int) = IntLiteral(n - m)
@@ -430,6 +423,7 @@ case class IntLiteral(n: BigInt) extends ArithmeticTerm with Literal {
   override lazy val toString = n.toString()
 }
 
+@flyweight
 case class Null() extends Term with Literal {
   val sort = sorts.Ref
   override lazy val toString = "Null"
@@ -440,11 +434,13 @@ sealed trait BooleanLiteral extends BooleanTerm with Literal {
   override lazy val toString = value.toString
 }
 
+@flyweight
 case class True() extends BooleanLiteral {
   val value = true
   override lazy val toString = "True"
 }
 
+@flyweight
 case class False() extends BooleanLiteral {
   val value = false
   override lazy val toString = "False"

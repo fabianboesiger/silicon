@@ -123,9 +123,9 @@ class Silicon(val reporter: PluginAwareReporter, private var debugInfo: Seq[(Str
     * parsing failed, or if --help or --version were supplied.
     */
   def start(): Unit = {
-    println("WAITING")
-    Thread.sleep(60000)
-    println("STARTING NOW")
+    //println("WAITING")
+    //Thread.sleep(60000)
+    //println("STARTING NOW")
 
     assert(lifetimeState == LifetimeState.Configured,
            "Silicon must be configured before it can be initialized, and it can only be initialized once")

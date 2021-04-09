@@ -4,6 +4,8 @@
 //
 // Copyright (c) 2011-2019 ETH Zurich.
 
+lazy val annotation = project in file("annotation")
+
 // Import general settings from Silver
 lazy val silver = project in file("silver")
 
@@ -12,6 +14,7 @@ lazy val common = (project in file("common"))
 
 // Silicon specific project settings
 lazy val silicon = (project in file("."))
+  .dependsOn(annotation)
   .dependsOn(silver % "compile->compile;test->test")
   .dependsOn(common)
   .aggregate(common)
@@ -25,6 +28,9 @@ lazy val silicon = (project in file("."))
     // Remove elidable method calls such as in SymbExLogger during compilation
     // scalacOptions ++= Seq("-Xelide-below", "1000"),
     // scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "640"),
+
+    // Enable macro expansion
+    scalacOptions += "-Ymacro-annotations",
 
     // External dependencies
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
