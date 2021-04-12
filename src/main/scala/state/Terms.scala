@@ -506,7 +506,7 @@ object Exists extends Quantifier {
   override lazy val toString = "QE"
 }
 
-class Quantification private[terms] (val q: Quantifier, /* TODO: Rename */
+case class Quantification private[terms] (val q: Quantifier, /* TODO: Rename */
                                      val vars: Seq[Var],
                                      val body: Term,
                                      val triggers: Seq[Trigger],
@@ -591,8 +591,9 @@ sealed abstract class ArithmeticTerm extends Term {
   val sort = sorts.Int
 }
 
-class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
-    with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
+    with BinaryOp[Term] {
 
   override val op = "+"
 }
@@ -600,18 +601,17 @@ class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
 object Plus extends ((Term, Term) => Term) {
   import predef.Zero
 
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (t0, Zero) => t0
     case (Zero, t1) => t1
     case (IntLiteral(n0), IntLiteral(n1)) => IntLiteral(n0 + n1)
     case _ => new Plus(e0, e1)
   }
-
-  def unapply(t: Plus) = Some((t.p0, t.p1))
 }
 
-class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
-    with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
+    with BinaryOp[Term] {
 
   override val op = "-"
 }
@@ -619,18 +619,17 @@ class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
 object Minus extends ((Term, Term) => Term) {
   import predef.Zero
 
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (t0, Zero) => t0
     case (IntLiteral(n0), IntLiteral(n1)) => IntLiteral(n0 - n1)
     case (t0, t1) if t0 == t1 => Zero
     case _ => new Minus(e0, e1)
   }
-
-  def unapply(t: Minus) = Some((t.p0, t.p1))
 }
 
-class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
-    with BinaryOp[Term] with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
+    with BinaryOp[Term] {
 
   override val op = "*"
 }
@@ -638,7 +637,7 @@ class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
 object Times extends ((Term, Term) => Term) {
   import predef.{Zero, One}
 
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (_, Zero) => Zero
     case (Zero, _) => Zero
     case (t0, One) => t0
@@ -646,16 +645,16 @@ object Times extends ((Term, Term) => Term) {
     case (IntLiteral(n0), IntLiteral(n1)) => IntLiteral(n0 * n1)
     case _ => new Times(e0, e1)
   }
-
-  def unapply(t: Times) = Some((t.p0, t.p1))
 }
 
+@flyweight
 case class Div(p0: Term, p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] {
 
   override val op = "/"
 }
 
+@flyweight
 case class Mod(p0: Term, p1: Term) extends ArithmeticTerm
     with BinaryOp[Term] {
 
@@ -666,8 +665,9 @@ case class Mod(p0: Term, p1: Term) extends ArithmeticTerm
 
 sealed trait BooleanTerm extends Term { override val sort = sorts.Bool }
 
-class Not(val p: Term) extends BooleanTerm
-    with StructuralEqualityUnaryOp[Term] {
+@flyweight
+case class Not(val p: Term) extends BooleanTerm
+    with UnaryOp[Term] {
 
   override val op = "!"
 
@@ -678,22 +678,17 @@ class Not(val p: Term) extends BooleanTerm
 }
 
 object Not extends (Term => Term) {
-  def apply(e0: Term) = e0 match {
+  def apply(e0: Term): Term = e0 match {
     case Not(e1) => e1
     case True() => False()
     case False() => True()
     case _ => new Not(e0)
   }
-
-  def unapply(e: Not) = Some(e.p)
 }
 
-class Or(val ts: Seq[Term]) extends BooleanTerm
-    with StructuralEquality {
-
+@flyweight
+case class Or(val ts: Seq[Term]) extends BooleanTerm {
   assert(ts.nonEmpty, "Expected at least one term, but found none")
-
-  val equalityDefiningMembers = ts
 
   override lazy val toString = ts.mkString(" || ")
 }
@@ -705,8 +700,8 @@ class Or(val ts: Seq[Term]) extends BooleanTerm
  *       since extractor objects can't be type-parametrised.
  */
 object Or extends (Iterable[Term] => Term) {
-  def apply(ts: Term*) = createOr(ts)
-  def apply(ts: Iterable[Term]) = createOr(ts.toSeq)
+  def apply(ts: Term*)(implicit d: DummyImplicit): Term = Or(ts)
+  def apply(ts: Iterable[Term]): Term = Or(ts.toSeq)
 
   //  def apply(e0: Term, e1: Term) = (e0, e1) match {
   //    case (True(), _) | (_, True()) => True()
@@ -716,8 +711,7 @@ object Or extends (Iterable[Term] => Term) {
   //    case _ => new Or(e0, e1)
   //  }
 
-  @inline
-  def createOr(_ts: Seq[Term]): Term = {
+  def apply(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case Or(ts1) => ts1; case other => other :: Nil}
     ts = _ts.filterNot(_ == False())
     ts = ts.distinct
@@ -729,26 +723,20 @@ object Or extends (Iterable[Term] => Term) {
       case _ => new Or(ts)
     }
   }
-
-  def unapply(e: Or) = Some(e.ts)
 }
 
-class And(val ts: Seq[Term]) extends BooleanTerm
-    with StructuralEquality {
-
+@flyweight
+case class And(val ts: Seq[Term]) extends BooleanTerm {
   assert(ts.nonEmpty, "Expected at least one term, but found none")
-
-  val equalityDefiningMembers = ts
 
   override lazy val toString = ts.mkString(" && ")
 }
 
 object And extends (Iterable[Term] => Term) {
-  def apply(ts: Term*) = createAnd(ts)
-  def apply(ts: Iterable[Term]) = createAnd(ts.toSeq)
+  def apply(ts: Term*)(implicit d: DummyImplicit): Term = And(ts)
+  def apply(ts: Iterable[Term]): Term = And(ts.toSeq)
 
-  @inline
-  def createAnd(_ts: Seq[Term]): Term = {
+  def apply(_ts: Seq[Term]): Term = {
     var ts = _ts.flatMap { case And(ts1) => ts1; case other => other :: Nil}
     ts = _ts.filterNot(_ == True())
     ts = ts.distinct
@@ -760,12 +748,11 @@ object And extends (Iterable[Term] => Term) {
       case _ => new And(ts)
     }
   }
-
-  def unapply(e: And) = Some(e.ts)
 }
 
-class Implies(val p0: Term, val p1: Term) extends BooleanTerm
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class Implies(val p0: Term, val p1: Term) extends BooleanTerm
+    with BinaryOp[Term] {
 
   override val op = "==>"
 }
@@ -780,40 +767,37 @@ object Implies extends ((Term, Term) => Term) {
     case _ if e0 == e1 => True()
     case _ => new Implies(e0, e1)
   }
-
-  def unapply(e: Implies) = Some((e.p0, e.p1))
 }
 
-class Iff(val p0: Term, val p1: Term) extends BooleanTerm
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class Iff(val p0: Term, val p1: Term) extends BooleanTerm
+    with BinaryOp[Term] {
 
   override val op = "<==>"
 }
 
 object Iff extends ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (True(), _) => e1
     case (_, True()) => e0
     case _ if e0 == e1 => True()
     case _ => new Iff(e0, e1)
   }
-
-  def unapply(e: Iff) = Some((e.p0, e.p1))
 }
 
-class Ite(val t0: Term, val t1: Term, val t2: Term)
-    extends Term with StructuralEquality {
+@flyweight
+case class Ite(val t0: Term, val t1: Term, val t2: Term)
+    extends Term {
 
   assert(t0.sort == sorts.Bool && t1.sort == t2.sort, /* @elidable */
          s"Ite term Ite($t0, $t1, $t2) is not well-sorted: ${t0.sort}, ${t1.sort}, ${t2.sort}")
 
-  val equalityDefiningMembers = t0 :: t1 :: t2 :: Nil
   val sort = t1.sort
   override lazy val toString = s"($t0 ? $t1 : $t2)"
 }
 
 object Ite extends ((Term, Term, Term) => Term) {
-  def apply(e0: Term, e1: Term, e2: Term) = (e0, e1, e2) match {
+  def apply(e0: Term, e1: Term, e2: Term): Term = (e0, e1, e2) match {
     case _ if e1 == e2 => e1
     case (True(), _, _) => e1
     case (False(), _, _) => e2
@@ -821,8 +805,6 @@ object Ite extends ((Term, Term, Term) => Term) {
     case (_, False(), True()) => Not(e0)
     case _ => new Ite(e0, e1, e2)
   }
-
-  def unapply(e: Ite) = Some((e.t0, e.t1, e.t2))
 }
 
 /* Comparison expression terms */
