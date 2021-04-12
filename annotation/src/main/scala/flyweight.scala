@@ -4,6 +4,7 @@ import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox
 
+
 @compileTimeOnly("Could not expand macro.")
 class flyweight extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro flyweightMacro.impl
@@ -59,7 +60,7 @@ object flyweightMacro {
           .foldLeft(true)(_ && _)
         ) {
           hasRenamedApplyMethod = true
-          // TODO: Make it possible to use implicit return type. (Using context?): USE tq""!!
+          // TODO: Make it possible to use implicit return type. (Using context?): Use tq""?
           if (methodReturnType.toString == "<type ?>")
             c.abort(c.enclosingPosition, "Return type of non-compiler-generated apply method has to be explicit.")
           else
