@@ -224,7 +224,6 @@ case class App(val applicable: Applicable, val args: Seq[Term])
   utils.assertExpectedSorts(applicable, args)
 
   val sort: Sort = applicable.resultSort
-  def copy(applicable: Applicable = applicable, args: Seq[Term] = args) = App(applicable, args)
 
   override lazy val toString =
     if (args.isEmpty) applicable.id.toString
@@ -814,7 +813,7 @@ sealed trait ComparisonTerm extends BooleanTerm
 sealed trait Equals extends ComparisonTerm with BinaryOp[Term] { override val op = "==" }
 
 object Equals extends ((Term, Term) => BooleanTerm) {
-  def apply(e0: Term, e1: Term) = {
+  def apply(e0: Term, e1: Term): BooleanTerm = {
     assert(e0.sort == e1.sort,
            s"Expected both operands to be of the same sort, but found ${e0.sort} ($e0) and ${e1.sort} ($e1).")
 
@@ -851,32 +850,28 @@ object Equals extends ((Term, Term) => BooleanTerm) {
 }
 
 /* Represents built-in equality, e.g., '=' in SMT-LIB */
-class BuiltinEquals private[terms] (val p0: Term, val p1: Term) extends Equals
-    with StructuralEqualityBinaryOp[Term]
+@flyweight
+case class BuiltinEquals private[terms] (val p0: Term, val p1: Term) extends Equals
+    with BinaryOp[Term]
 
 object BuiltinEquals extends ((Term, Term) => BooleanTerm) {
-  def apply(t1: Term, t2: Term) = (t1, t2) match {
+  def apply(t1: Term, t2: Term): BooleanTerm = (t1, t2) match {
     case (p0: PermLiteral, p1: PermLiteral) => if (p0.literal == p1.literal) True() else False()
     case _ => new BuiltinEquals(t1, t2)
   }
-
-  def unapply(e: BuiltinEquals) = Some((e.p0, e.p1))
 }
 
 /* Custom equality that (potentially) needs to be axiomatised. */
-class CustomEquals private[terms] (val p0: Term, val p1: Term) extends Equals
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class CustomEquals private[terms] (val p0: Term, val p1: Term) extends Equals
+    with BinaryOp[Term] {
 
   override val op = "==="
 }
 
-object CustomEquals extends ((Term, Term) => BooleanTerm) {
-  def apply(t1: Term, t2: Term) = new CustomEquals(t1, t2)
-  def unapply(e: CustomEquals) = Some((e.p0, e.p1))
-}
-
-class Less(val p0: Term, val p1: Term) extends ComparisonTerm
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class Less(val p0: Term, val p1: Term) extends ComparisonTerm
+    with BinaryOp[Term] {
 
   assert(p0.sort == p1.sort,
          s"Expected both operands to be of the same sort, but found ${p0.sort} ($p0) and ${p1.sort} ($p1).")
@@ -885,61 +880,56 @@ class Less(val p0: Term, val p1: Term) extends ComparisonTerm
 }
 
 object Less extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): BooleanTerm = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 < n1) True() else False()
     case (t0, t1) if t0 == t1 => False()
     case _ => new Less(e0, e1)
   }
-
-  def unapply(e: Less) = Some((e.p0, e.p1))
 }
 
-class AtMost(val p0: Term, val p1: Term) extends ComparisonTerm
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class AtMost(val p0: Term, val p1: Term) extends ComparisonTerm
+    with BinaryOp[Term] {
 
   override val op = "<="
 }
 
 object AtMost extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): BooleanTerm = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 <= n1) True() else False()
     case (t0, t1) if t0 == t1 => True()
     case _ => new AtMost(e0, e1)
   }
-
-  def unapply(e: AtMost) = Some((e.p0, e.p1))
 }
 
-class Greater(val p0: Term, val p1: Term) extends ComparisonTerm
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class Greater(val p0: Term, val p1: Term) extends ComparisonTerm
+    with BinaryOp[Term] {
 
   override val op = ">"
 }
 
 object Greater extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): BooleanTerm = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 > n1) True() else False()
     case (t0, t1) if t0 == t1 => False()
     case _ => new Greater(e0, e1)
   }
-
-  def unapply(e: Greater) = Some((e.p0, e.p1))
 }
 
-class AtLeast(val p0: Term, val p1: Term) extends ComparisonTerm
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class AtLeast(val p0: Term, val p1: Term) extends ComparisonTerm
+    with BinaryOp[Term] {
 
   override val op = ">="
 }
 
 object AtLeast extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): BooleanTerm = (e0, e1) match {
     case (IntLiteral(n0), IntLiteral(n1)) => if (n0 >= n1) True() else False()
     case (t0, t1) if t0 == t1 => True()
     case _ => new AtLeast(e0, e1)
   }
-
-  def unapply(e: AtLeast) = Some((e.p0, e.p1))
 }
 
 /*
@@ -995,61 +985,57 @@ sealed trait Permissions extends Term {
 
 sealed abstract class PermLiteral(val literal: Rational) extends Permissions
 
+@flyweight
 case class NoPerm() extends PermLiteral(Rational.zero) { override lazy val toString = "Z" }
+@flyweight
 case class FullPerm() extends PermLiteral(Rational.one) { override lazy val toString = "W" }
 
-class FractionPermLiteral(r: Rational) extends PermLiteral(r) {
-  override def equals(obj: Any) = obj match {
-    case p: FractionPermLiteral => literal == p.literal
-    case _ => false
-  }
+@flyweight
+case class FractionPermLiteral(r: Rational) extends PermLiteral(r) {
   override lazy val toString = literal.toString
 }
 
 object FractionPermLiteral extends (Rational => Permissions) {
-  def apply(r: Rational) = r match {
+  def apply(r: Rational): PermLiteral = r match {
     case Rational(n, _) if n == 0 => NoPerm()
     case Rational(n, d) if n == d => FullPerm()
     case _ => new FractionPermLiteral(r)
   }
-
-  def unapply(t: FractionPermLiteral) = Some(t.literal)
 }
 
-class FractionPerm(val n: Term, val d: Term)
-    extends Permissions
-       with StructuralEquality {
-
-  val equalityDefiningMembers = n :: d :: Nil
+@flyweight
+case class FractionPerm(val n: Term, val d: Term)
+    extends Permissions {
   override lazy val toString = s"$n/$d"
 }
 
 object FractionPerm extends ((Term, Term) => Permissions) {
-  def apply(n: Term, d: Term) = (n, d) match {
+  def apply(n: Term, d: Term): Permissions = (n, d) match {
     case (IntLiteral(i1), IntLiteral(i2)) if i2 != 0 => FractionPermLiteral(Rational(i1, i2))
     case _ => new FractionPerm(n, d)
   }
-
-  def unapply(fp: FractionPerm) = Some((fp.n, fp.d))
 }
 
+@flyweight
 case class IsValidPermVar(v: Var) extends BooleanTerm {
   override lazy val toString = s"PVar($v)"
 }
 
+@flyweight
 case class IsReadPermVar(v: Var, ub: Term) extends BooleanTerm {
   override lazy val toString = s"RdVar($v, $ub)"
 }
 
-class PermTimes(val p0: Term, val p1: Term)
+@flyweight
+case class PermTimes(val p0: Term, val p1: Term)
     extends Permissions
-       with StructuralEqualityBinaryOp[Term] {
+       with BinaryOp[Term] {
 
   override val op = "*"
 }
 
 object PermTimes extends ((Term, Term) => Term) {
-  def apply(t0: Term, t1: Term) = (t0, t1) match {
+  def apply(t0: Term, t1: Term): Term = (t0, t1) match {
     case (FullPerm(), t) => t
     case (t, FullPerm()) => t
     case (NoPerm(), _) => NoPerm()
@@ -1057,14 +1043,12 @@ object PermTimes extends ((Term, Term) => Term) {
     case (p0: PermLiteral, p1: PermLiteral) => FractionPermLiteral(p0.literal * p1.literal)
     case (_, _) => new PermTimes(t0, t1)
   }
-
-  def unapply(pt: PermTimes) = Some((pt.p0, pt.p1))
 }
 
-class IntPermTimes(val p0: Term, val p1: Term)
+@flyweight
+case class IntPermTimes(val p0: Term, val p1: Term)
     extends Permissions
-       with BinaryOp[Term]
-       with StructuralEqualityBinaryOp[Term] {
+       with BinaryOp[Term] {
 
   override val op = "*"
 }
@@ -1072,21 +1056,19 @@ class IntPermTimes(val p0: Term, val p1: Term)
 object IntPermTimes extends ((Term, Term) => Term) {
   import predef.{Zero, One}
 
-  def apply(t0: Term, t1: Term) = (t0, t1) match {
+  def apply(t0: Term, t1: Term): Term = (t0, t1) match {
     case (Zero, _) => NoPerm()
     case (One, t) => t
     case (_, NoPerm()) => NoPerm()
     case (IntLiteral(i), p: PermLiteral) => FractionPermLiteral(Rational(i, 1) * p.literal)
     case (_, _) => new IntPermTimes(t0, t1)
   }
-
-  def unapply(pt: IntPermTimes) = Some((pt.p0, pt.p1))
 }
 
-class PermIntDiv(val p0: Term, val p1: Term)
+@flyweight
+case class PermIntDiv(val p0: Term, val p1: Term)
     extends Permissions
-       with BinaryOp[Term]
-       with StructuralEqualityBinaryOp[Term] {
+       with BinaryOp[Term] {
 
   utils.assertSort(p1, "Second term", sorts.Int)
 
@@ -1096,13 +1078,11 @@ class PermIntDiv(val p0: Term, val p1: Term)
 object PermIntDiv extends ((Term, Term) => Term) {
   import predef.One
 
-  def apply(t0: Term, t1: Term) = (t0, t1) match {
+  def apply(t0: Term, t1: Term): Term = (t0, t1) match {
     case (t, One) => t
     case (p: PermLiteral, IntLiteral(i)) if i != 0 => FractionPermLiteral(p.literal / Rational(i, 1))
     case (_, _) => new PermIntDiv(t0, t1)
   }
-
-  def unapply(t: PermIntDiv) = Some((t.p0, t.p1))
 }
 
 object PermDiv extends ((Term, Term) => Term) {
@@ -1111,16 +1091,16 @@ object PermDiv extends ((Term, Term) => Term) {
   def apply(t0: Term, t1: Term) = PermTimes(t0, FractionPerm(One, t1))
 }
 
-class PermPlus(val p0: Term, val p1: Term)
+@flyweight
+case class PermPlus(val p0: Term, val p1: Term)
     extends Permissions
-       with BinaryOp[Term]
-       with StructuralEqualityBinaryOp[Term] {
+       with BinaryOp[Term] {
 
   override val op = "+"
 }
 
 object PermPlus extends ((Term, Term) => Term) {
-  def apply(t0: Term, t1: Term) = (t0, t1) match {
+  def apply(t0: Term, t1: Term): Term = (t0, t1) match {
     case (NoPerm(), _) => t1
     case (_, NoPerm()) => t0
     case (p0: PermLiteral, p1: PermLiteral) => FractionPermLiteral(p0.literal + p1.literal)
@@ -1130,14 +1110,12 @@ object PermPlus extends ((Term, Term) => Term) {
 
     case (_, _) => new PermPlus(t0, t1)
   }
-
-  def unapply(pp: PermPlus) = Some((pp.p0, pp.p1))
 }
 
-class PermMinus(val p0: Term, val p1: Term)
+@flyweight
+case class PermMinus(val p0: Term, val p1: Term)
     extends Permissions
-       with BinaryOp[Term]
-       with StructuralEqualityBinaryOp[Term] {
+       with BinaryOp[Term] {
 
   override val op = "-"
 
@@ -1148,7 +1126,7 @@ class PermMinus(val p0: Term, val p1: Term)
 }
 
 object PermMinus extends ((Term, Term) => Term) {
-  def apply(t0: Term, t1: Term) = (t0, t1) match {
+  def apply(t0: Term, t1: Term): Term = (t0, t1) match {
     case (_, NoPerm()) => t0
     case (p0, p1) if p0 == p1 => NoPerm()
     case (p0: PermLiteral, p1: PermLiteral) => FractionPermLiteral(p0.literal - p1.literal)
@@ -1157,14 +1135,12 @@ object PermMinus extends ((Term, Term) => Term) {
     case (PermPlus(p0, p1), p2) if p1 == p2 => p0
     case (_, _) => new PermMinus(t0, t1)
   }
-
-  def unapply(pm: PermMinus) = Some((pm.p0, pm.p1))
 }
 
-class PermLess(val p0: Term, val p1: Term)
+@flyweight
+case class PermLess(val p0: Term, val p1: Term)
     extends BooleanTerm
-       with BinaryOp[Term]
-       with StructuralEqualityBinaryOp[Term] {
+       with BinaryOp[Term] {
 
   override lazy val toString = s"($p0) < ($p1)"
 
@@ -1186,29 +1162,26 @@ object PermLess extends ((Term, Term) => Term) {
       case _ => new PermLess(t0, t1)
     }
   }
-
-  def unapply(pl: PermLess) = Some((pl.p0, pl.p1))
 }
 
-class PermAtMost(val p0: Term, val p1: Term) extends ComparisonTerm
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class PermAtMost(val p0: Term, val p1: Term) extends ComparisonTerm
+    with BinaryOp[Term] {
 
   override val op = "<="
 }
 
 object PermAtMost extends ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): BooleanTerm = (e0, e1) match {
     case (p0: PermLiteral, p1: PermLiteral) => if (p0.literal <= p1.literal) True() else False()
     case (t0, t1) if t0 == t1 => True()
     case _ => new PermAtMost(e0, e1)
   }
-
-  def unapply(e: PermAtMost) = Some((e.p0, e.p1))
 }
 
-class PermMin(val p0: Term, val p1: Term) extends Permissions
-    with BinaryOp[Term]
-    with StructuralEqualityBinaryOp[Term] {
+@flyweight
+case class PermMin(val p0: Term, val p1: Term) extends Permissions
+    with BinaryOp[Term] {
 
   utils.assertSort(p0, "Permission 1st", sorts.Perm)
   utils.assertSort(p1, "Permission 2nd", sorts.Perm)
@@ -1217,13 +1190,11 @@ class PermMin(val p0: Term, val p1: Term) extends Permissions
 }
 
 object PermMin extends ((Term, Term) => Term) {
-  def apply(e0: Term, e1: Term) = (e0, e1) match {
+  def apply(e0: Term, e1: Term): Term = (e0, e1) match {
     case (t0, t1) if t0 == t1 => t0
     case (p0: PermLiteral, p1: PermLiteral) => if (p0.literal > p1.literal) p1 else p0
     case _ => new PermMin(e0, e1)
   }
-
-  def unapply(e: PermMin) = Some((e.p0, e.p1))
 }
 
 /* Sequences */

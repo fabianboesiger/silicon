@@ -14,8 +14,6 @@ object flyweightMacro {
     import c.universe._
     val inputs = annottees.map(_.tree).toList
 
-    /* STAGE 1: Extract all necessary information about the annotated code */
-
     // Get class declaration and companion object declaration if it exists.
     val (classDecl, companionDecl) = inputs match {
       case (head: ClassDef) :: Nil => (head, None)
@@ -41,14 +39,11 @@ object flyweightMacro {
       case None => List(q"")
     }
 
-    /* STAGE 2: Preparation, check what methods already are defined, rename apply to _apply. */
-
-    // Some helper values.
+    // Define some helper values.
     val fieldTypes = fields.map(_.tpt).toList
     val fieldNames = fields.map(_.name).toList
-    val termName = TermName(className.toString) // TODO: This seems wrong, but it works for now.
+    val termName = TermName(className.toString)
 
-    // TODO: Find a better solution.
     // Check if an apply method already exists and rename it.
     var hasRenamedApplyMethod = false
     var returnType = className
@@ -57,6 +52,7 @@ object flyweightMacro {
         val defn = elem.asInstanceOf[DefDef]
         val q"$_ def $methodName(...${methodFields}): $methodReturnType = $methodBody" = defn
 
+        // TODO: Assert that only _apply creates new instances.
         if (methodName.toString == "apply" && methodFields.head.length == fields.length && methodFields.head
           .zip(fields)
           .map({ case (mf, f) => mf.tpt.toString == f.tpt.toString })
@@ -74,10 +70,6 @@ object flyweightMacro {
         case _: ClassCastException => elem
       })
 
-    /* STAGE 3: Generate output. */
-
-    //println(q"override def copy(..${fieldNames.zip(fieldTypes).map({case (name, ty) => q"val $name: $ty = $name"})}): $className = $termName(..${fieldNames})")
-
     // Create output from the extracted information.
     q"""
       case class $className private[terms] (..$fields) extends ..$bases {
@@ -85,6 +77,7 @@ object flyweightMacro {
 
         override def equals(other: Any): Boolean = super.equals(other)
         override def hashCode(): Int = super.hashCode()
+        def copy(..${fieldNames.zip(fieldTypes).map({ case (name, ty) => q"val $name: $ty = $name"})}) = ${termName}(..${fieldNames})
       }
 
       object ${termName} extends ((..${fieldTypes}) => $returnType) {
