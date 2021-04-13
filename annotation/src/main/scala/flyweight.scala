@@ -4,15 +4,21 @@ import scala.annotation.{StaticAnnotation, compileTimeOnly}
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox
 
-
 @compileTimeOnly("Could not expand macro.")
-class flyweight extends StaticAnnotation {
+class flyweight(genCopy: Boolean = true) extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro flyweightMacro.impl
 }
 
 object flyweightMacro {
   def impl(c: whitebox.Context)(annottees: c.Expr[Any]*) = {
     import c.universe._
+
+    // Check if copy method should be generated.
+    val genCopy: Boolean = c.prefix.tree match {
+      case q"new flyweight($b)" => c.eval[Boolean](c.Expr(b))
+      case _ => true
+    }
+
     val inputs = annottees.map(_.tree).toList
 
     // Get class declaration and companion object declaration if it exists.
@@ -47,20 +53,22 @@ object flyweightMacro {
 
     // Check if an apply method already exists and rename it.
     var hasRenamedApplyMethod = false
+    var hasUnapplyMethod = false
     var returnType = className
     val renamedCompanionDefns = companionDefns
       .map((elem) => try {
         val defn = elem.asInstanceOf[DefDef]
         val q"$_ def $methodName(...${methodFields}): $methodReturnType = $methodBody" = defn
 
-        // TODO: Assert that only _apply creates new instances.
+        if (methodName.toString == "unapply") hasUnapplyMethod = true
+
         if (methodName.toString == "apply" && methodFields.head.length == fields.length && methodFields.head
           .zip(fields)
           .map({ case (mf, f) => mf.tpt.toString == f.tpt.toString })
           .foldLeft(true)(_ && _)
         ) {
           hasRenamedApplyMethod = true
-          // TODO: Make it possible to use implicit return type. (Using context?): Use tq""?
+          // TODO: Make it possible to use implicit return type. (Using context?)
           if (methodReturnType.toString == "<type ?>")
             c.abort(c.enclosingPosition, "Return type of non-compiler-generated apply method has to be explicit.")
           else
@@ -73,19 +81,21 @@ object flyweightMacro {
 
     // Create output from the extracted information.
     q"""
-      case class $className private[terms] (..$fields) extends ..$bases {
+      class $className private[terms] (..$fields) extends ..$bases {
+        ${
+          if (genCopy)
+            q"def copy(..${fieldNames.zip(fieldTypes).map({ case (name, ty) => q"val $name: $ty = $name"})}) = ${termName}(..${fieldNames})"
+          else
+            q""
+        }
         ..$body
-
-        override def equals(other: Any): Boolean = super.equals(other)
-        override def hashCode(): Int = super.hashCode()
-        def copy(..${fieldNames.zip(fieldTypes).map({ case (name, ty) => q"val $name: $ty = $name"})}) = ${termName}(..${fieldNames})
       }
 
       object ${termName} extends ((..${fieldTypes}) => $returnType) {
         import scala.collection.concurrent.TrieMap
         var pool = new TrieMap[(..${fieldTypes}), $returnType]
 
-        override def apply(..$fields) = {
+        def apply(..$fields) = {
           pool.get((..${fieldNames})) match {
             case None =>
               val term = ${
@@ -99,6 +109,20 @@ object flyweightMacro {
               term
             case Some(term) => term
           }
+        }
+
+        ${ // Create unapply method only if not already defined.
+          if (!hasUnapplyMethod)
+            q"""def unapply(t: $className) = {
+                      ${
+              // Turns out unapply on case classes without fields return true instead of an Option.
+              if (fields.isEmpty)
+                q"true"
+              else
+                q"Some((..${fieldNames.map(name => q"t.$name").toList}))"
+            }
+          }"""
+          else q""
         }
 
         ..$renamedCompanionDefns

@@ -37,59 +37,49 @@ object sorts {
   object Perm extends Sort { val id = Identifier("Perm"); override lazy val toString = id.toString }
   object Unit extends Sort { val id = Identifier("()");   override lazy val toString = id.toString }
 
-  @flyweight
   case class Seq(elementsSort: Sort) extends Sort {
     val id = Identifier(s"Seq[$elementsSort]")
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class Set(elementsSort: Sort) extends Sort {
     val id = Identifier(s"Set[$elementsSort]")
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class Multiset(elementsSort: Sort) extends Sort {
     val id = Identifier(s"Multiset[$elementsSort]")
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class Map(keySort: Sort, valueSort: Sort) extends Sort {
     val id = Identifier(s"Map[$keySort,$valueSort]")
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class UserSort(id: Identifier) extends Sort {
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class SMTSort(id: Identifier) extends Sort {
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class FieldValueFunction(codomainSort: Sort) extends Sort {
     val id = Identifier(s"FVF[$codomainSort]")
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class PredicateSnapFunction(codomainSort: Sort) extends Sort {
     val id = Identifier(s"PSF[$codomainSort]")
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class FieldPermFunction() extends Sort  {
     val id = Identifier("FPM")
     override lazy val toString = id.toString
   }
 
-  @flyweight
   case class PredicatePermFunction() extends Sort {
     val id = Identifier("PPM")
     override lazy val toString = id.toString
@@ -1670,7 +1660,8 @@ object MapRange extends (Term => SetTerm) {
 
 sealed trait SnapshotTerm extends Term { val sort = sorts.Snap }
 
-class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
+@flyweight
+case class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
   with StructuralEqualityBinaryOp[Term] {
 
   utils.assertSort(p0, "first operand", sorts.Snap)
@@ -1680,9 +1671,7 @@ class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
 }
 
 object Combine extends ((Term, Term) => Term) {
-  def apply(t0: Term, t1: Term) = new Combine(t0.convert(sorts.Snap), t1.convert(sorts.Snap))
-
-  def unapply(c: Combine) = Some((c.p0, c.p1))
+  def apply(t0: Term, t1: Term): Combine = new Combine(t0.convert(sorts.Snap), t1.convert(sorts.Snap))
 }
 
 @flyweight
@@ -1780,7 +1769,7 @@ case class PredicateTrigger(predname: String, psf: Term, args: Seq[Term]) extend
 }
 
 /* Magic wands */
-
+@flyweight(false)
 case class MagicWandSnapshot(abstractLhs: Term, rhsSnapshot: Term) extends Combine(abstractLhs, rhsSnapshot) {
   utils.assertSort(abstractLhs, "abstract lhs", sorts.Snap)
   utils.assertSort(rhsSnapshot, "rhs", sorts.Snap)
