@@ -356,45 +356,6 @@ trait BinaryOp[E] {
   override lazy val toString = s"$p0 $op $p1"
 }
 
-trait StructuralEqualityUnaryOp[E] extends UnaryOp[E] {
-  override def equals(other: Any) =
-    this.eq(other.asInstanceOf[AnyRef]) || (other match {
-      case uop: UnaryOp[_] if uop.getClass.eq(this.getClass) => p == uop.p
-      case _ => false
-    })
-
-  override def hashCode(): Int = p.hashCode
-}
-
-trait StructuralEqualityBinaryOp[E] extends BinaryOp[E] {
-  override def equals(other: Any) =
-    this.eq(other.asInstanceOf[AnyRef]) || (other match {
-      case bop: BinaryOp[_] if bop.getClass.eq(this.getClass) =>
-        /* getClass identity is checked in order to prohibit that different
-         * subtypes of BinaryOp are considered equal.
-         */
-        p0 == bop.p0 && p1 == bop.p1
-
-      case _ => false
-    })
-
-  override def hashCode(): Int = p0.hashCode() * p1.hashCode()
-}
-
-trait StructuralEquality { self: AnyRef =>
-  val equalityDefiningMembers: Seq[Any]
-
-  override val hashCode = viper.silver.utility.Common.generateHashCode(equalityDefiningMembers)
-
-  override def equals(other: Any) = (
-    this.eq(other.asInstanceOf[AnyRef])
-      || (other match {
-      case se: StructuralEquality if this.getClass.eq(se.getClass) =>
-        equalityDefiningMembers == se.equalityDefiningMembers
-      case _ => false
-    }))
-}
-
 /* Literals */
 
 sealed trait Literal extends Term
@@ -1662,7 +1623,7 @@ sealed trait SnapshotTerm extends Term { val sort = sorts.Snap }
 
 @flyweight
 case class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
-  with StructuralEqualityBinaryOp[Term] {
+  with BinaryOp[Term] {
 
   utils.assertSort(p0, "first operand", sorts.Snap)
   utils.assertSort(p1, "second operand", sorts.Snap)
