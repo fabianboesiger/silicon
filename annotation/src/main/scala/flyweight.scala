@@ -82,6 +82,8 @@ object flyweightMacro {
     // Create output from the extracted information.
     q"""
       class $className private[terms] (..$fields) extends ..$bases {
+        override lazy val hashCode = System.identityHashCode(this)
+
         ${
           if (genCopy)
             q"def copy(..${fieldNames.zip(fieldTypes).map({ case (name, ty) => q"val $name: $ty = $name"})}) = ${termName}(..${fieldNames})"
