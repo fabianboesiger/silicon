@@ -12,7 +12,7 @@ import viper.silicon.state.{Identifier, terms}
 import viper.silicon.annotation.flyweight
 
 @flyweight
-case class Trigger private[terms] (val p: Seq[Term]) extends UnaryOp[Seq[Term]] {
+class Trigger private[terms] (val p: Seq[Term]) extends UnaryOp[Seq[Term]] {
   override lazy val toString = s"{${p.mkString(",")}}"
 }
 

@@ -95,22 +95,22 @@ sealed trait Decl extends Node {
 }
 
 @flyweight
-case class SortDecl(sort: Sort) extends Decl {
+class SortDecl(val sort: Sort) extends Decl {
   val id: Identifier = sort.id
 }
 
 @flyweight
-case class FunctionDecl(func: Function) extends Decl {
+class FunctionDecl(val func: Function) extends Decl {
   val id: Identifier = func.id
 }
 
 @flyweight
-case class SortWrapperDecl(from: Sort, to: Sort) extends Decl {
+class SortWrapperDecl(val from: Sort, val to: Sort) extends Decl {
   val id: Identifier = SortWrapperId(from, to)
 }
 
 @flyweight
-case class MacroDecl(id: Identifier, args: Seq[Var], body: Term) extends Decl
+class MacroDecl(val id: Identifier, val args: Seq[Var], val body: Term) extends Decl
 
 object ConstDecl extends (Var => Decl) { /* TODO: Inconsistent naming - Const vs Var */
   def apply(v: Var) = FunctionDecl(v)
@@ -153,7 +153,7 @@ trait GenericFunction[F <: Function] extends Function {
 }
 
 @flyweight
-case class Fun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+class Fun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[Fun]
 
 object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) {
@@ -167,7 +167,7 @@ object Fun extends ((Identifier, Seq[Sort], Sort) => Fun) {
  *       object.
  */
 @flyweight
-case class HeapDepFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+class HeapDepFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[HeapDepFun]
 
 object HeapDepFun extends ((Identifier, Seq[Sort], Sort) => HeapDepFun) {
@@ -176,7 +176,7 @@ object HeapDepFun extends ((Identifier, Seq[Sort], Sort) => HeapDepFun) {
 }
 
 @flyweight
-case class DomainFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+class DomainFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[DomainFun]
 
 object DomainFun extends ((Identifier, Seq[Sort], Sort) => DomainFun) {
@@ -185,7 +185,7 @@ object DomainFun extends ((Identifier, Seq[Sort], Sort) => DomainFun) {
 }
 
 @flyweight
-case class SMTFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
+class SMTFun(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort)
   extends GenericFunction[SMTFun]
 
 object SMTFun extends ((Identifier, Seq[Sort], Sort) => SMTFun) {
@@ -194,10 +194,10 @@ object SMTFun extends ((Identifier, Seq[Sort], Sort) => SMTFun) {
 }
 
 @flyweight
-case class Macro(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) extends Applicable
+class Macro(val id: Identifier, val argSorts: Seq[Sort], val resultSort: Sort) extends Applicable
 
 @flyweight
-case class Var(id: Identifier, sort: Sort) extends Function with Application[Var] {
+class Var(val id: Identifier, val sort: Sort) extends Function with Application[Var] {
   val applicable: Var = this
   val args: Seq[Term] = Seq.empty
   val argSorts: Seq[Sort] = Seq(sorts.Unit)
@@ -207,7 +207,7 @@ case class Var(id: Identifier, sort: Sort) extends Function with Application[Var
 }
 
 @flyweight
-case class App(val applicable: Applicable, val args: Seq[Term])
+class App(val applicable: Applicable, val args: Seq[Term])
   extends Application[Applicable] {
   /*with PossibleTrigger*/
 
@@ -365,7 +365,7 @@ case object Unit extends SnapshotTerm with Literal {
 }
 
 @flyweight
-case class IntLiteral(n: BigInt) extends ArithmeticTerm with Literal {
+class IntLiteral(val n: BigInt) extends ArithmeticTerm with Literal {
   def +(m: Int) = IntLiteral(n + m)
   def -(m: Int) = IntLiteral(n - m)
   def *(m: Int) = IntLiteral(n * m)
@@ -374,7 +374,7 @@ case class IntLiteral(n: BigInt) extends ArithmeticTerm with Literal {
 }
 
 @flyweight
-case class Null() extends Term with Literal {
+class Null() extends Term with Literal {
   val sort = sorts.Ref
   override lazy val toString = "Null"
 }
@@ -385,13 +385,13 @@ sealed trait BooleanLiteral extends BooleanTerm with Literal {
 }
 
 @flyweight
-case class True() extends BooleanLiteral {
+class True() extends BooleanLiteral {
   val value = true
   override lazy val toString = "True"
 }
 
 @flyweight
-case class False() extends BooleanLiteral {
+class False() extends BooleanLiteral {
   val value = false
   override lazy val toString = "False"
 }
@@ -457,7 +457,7 @@ object Exists extends Quantifier {
 }
 
 @flyweight
-case class Quantification private[terms] (val q: Quantifier, /* TODO: Rename */
+class Quantification private[terms] (val q: Quantifier, /* TODO: Rename */
                                      val vars: Seq[Var],
                                      val body: Term,
                                      val triggers: Seq[Trigger],
@@ -502,7 +502,7 @@ sealed abstract class ArithmeticTerm extends Term {
 }
 
 @flyweight
-case class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
+class Plus(val p0: Term, val p1: Term) extends ArithmeticTerm
   with BinaryOp[Term] {
 
   override val op = "+"
@@ -520,7 +520,7 @@ object Plus extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
+class Minus(val p0: Term, val p1: Term) extends ArithmeticTerm
   with BinaryOp[Term] {
 
   override val op = "-"
@@ -538,7 +538,7 @@ object Minus extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
+class Times(val p0: Term, val p1: Term) extends ArithmeticTerm
   with BinaryOp[Term] {
 
   override val op = "*"
@@ -558,14 +558,14 @@ object Times extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class Div(p0: Term, p1: Term) extends ArithmeticTerm
+class Div(val p0: Term, val p1: Term) extends ArithmeticTerm
   with BinaryOp[Term] {
 
   override val op = "/"
 }
 
 @flyweight
-case class Mod(p0: Term, p1: Term) extends ArithmeticTerm
+class Mod(val p0: Term, val p1: Term) extends ArithmeticTerm
   with BinaryOp[Term] {
 
   override val op = "%"
@@ -576,7 +576,7 @@ case class Mod(p0: Term, p1: Term) extends ArithmeticTerm
 sealed trait BooleanTerm extends Term { override val sort = sorts.Bool }
 
 @flyweight
-case class Not(val p: Term) extends BooleanTerm
+class Not(val p: Term) extends BooleanTerm
   with UnaryOp[Term] {
 
   override val op = "!"
@@ -597,7 +597,7 @@ object Not extends (Term => Term) {
 }
 
 @flyweight
-case class Or(val ts: Seq[Term]) extends BooleanTerm {
+class Or(val ts: Seq[Term]) extends BooleanTerm {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
 
@@ -637,7 +637,7 @@ object Or extends (Iterable[Term] => Term) {
 }
 
 @flyweight
-case class And(val ts: Seq[Term]) extends BooleanTerm {
+class And(val ts: Seq[Term]) extends BooleanTerm {
 
   assert(ts.nonEmpty, "Expected at least one term, but found none")
 
@@ -663,7 +663,7 @@ object And extends (Iterable[Term] => Term) {
 }
 
 @flyweight
-case class Implies(val p0: Term, val p1: Term) extends BooleanTerm
+class Implies(val p0: Term, val p1: Term) extends BooleanTerm
   with BinaryOp[Term] {
 
   override val op = "==>"
@@ -682,7 +682,7 @@ object Implies extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class Iff(val p0: Term, val p1: Term) extends BooleanTerm
+class Iff(val p0: Term, val p1: Term) extends BooleanTerm
   with BinaryOp[Term] {
 
   override val op = "<==>"
@@ -698,7 +698,7 @@ object Iff extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class Ite(val t0: Term, val t1: Term, val t2: Term)
+class Ite(val t0: Term, val t1: Term, val t2: Term)
   extends Term {
 
   assert(t0.sort == sorts.Bool && t1.sort == t2.sort, /* @elidable */
@@ -764,7 +764,7 @@ object Equals extends ((Term, Term) => BooleanTerm) {
 
 /* Represents built-in equality, e.g., '=' in SMT-LIB */
 @flyweight
-case class BuiltinEquals private[terms] (val p0: Term, val p1: Term) extends Equals
+class BuiltinEquals private[terms] (val p0: Term, val p1: Term) extends Equals
   with BinaryOp[Term]
 
 object BuiltinEquals extends ((Term, Term) => BooleanTerm) {
@@ -776,14 +776,14 @@ object BuiltinEquals extends ((Term, Term) => BooleanTerm) {
 
 /* Custom equality that (potentially) needs to be axiomatised. */
 @flyweight
-case class CustomEquals private[terms] (val p0: Term, val p1: Term) extends Equals
+class CustomEquals private[terms] (val p0: Term, val p1: Term) extends Equals
   with BinaryOp[Term] {
 
   override val op = "==="
 }
 
 @flyweight
-case class Less(val p0: Term, val p1: Term) extends ComparisonTerm
+class Less(val p0: Term, val p1: Term) extends ComparisonTerm
   with BinaryOp[Term] {
 
   assert(p0.sort == p1.sort,
@@ -801,7 +801,7 @@ object Less extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Term)
 }
 
 @flyweight
-case class AtMost(val p0: Term, val p1: Term) extends ComparisonTerm
+class AtMost(val p0: Term, val p1: Term) extends ComparisonTerm
   with BinaryOp[Term] {
 
   override val op = "<="
@@ -816,7 +816,7 @@ object AtMost extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Ter
 }
 
 @flyweight
-case class Greater(val p0: Term, val p1: Term) extends ComparisonTerm
+class Greater(val p0: Term, val p1: Term) extends ComparisonTerm
   with BinaryOp[Term] {
 
   override val op = ">"
@@ -831,7 +831,7 @@ object Greater extends /* OptimisingBinaryArithmeticOperation with */ ((Term, Te
 }
 
 @flyweight
-case class AtLeast(val p0: Term, val p1: Term) extends ComparisonTerm
+class AtLeast(val p0: Term, val p1: Term) extends ComparisonTerm
   with BinaryOp[Term] {
 
   override val op = ">="
@@ -899,12 +899,12 @@ sealed trait Permissions extends Term {
 sealed abstract class PermLiteral(val literal: Rational) extends Permissions
 
 @flyweight
-case class NoPerm() extends PermLiteral(Rational.zero) { override lazy val toString = "Z" }
+class NoPerm() extends PermLiteral(Rational.zero) { override lazy val toString = "Z" }
 @flyweight
-case class FullPerm() extends PermLiteral(Rational.one) { override lazy val toString = "W" }
+class FullPerm() extends PermLiteral(Rational.one) { override lazy val toString = "W" }
 
 @flyweight
-case class FractionPermLiteral(r: Rational) extends PermLiteral(r) {
+class FractionPermLiteral(val r: Rational) extends PermLiteral(r) {
   override lazy val toString = literal.toString
 }
 
@@ -917,7 +917,7 @@ object FractionPermLiteral extends (Rational => Permissions) {
 }
 
 @flyweight
-case class FractionPerm(val n: Term, val d: Term)
+class FractionPerm(val n: Term, val d: Term)
   extends Permissions {
 
   override lazy val toString = s"$n/$d"
@@ -931,17 +931,17 @@ object FractionPerm extends ((Term, Term) => Permissions) {
 }
 
 @flyweight
-case class IsValidPermVar(v: Var) extends BooleanTerm {
+class IsValidPermVar(val v: Var) extends BooleanTerm {
   override lazy val toString = s"PVar($v)"
 }
 
 @flyweight
-case class IsReadPermVar(v: Var, ub: Term) extends BooleanTerm {
+class IsReadPermVar(val v: Var, val ub: Term) extends BooleanTerm {
   override lazy val toString = s"RdVar($v, $ub)"
 }
 
 @flyweight
-case class PermTimes(val p0: Term, val p1: Term)
+class PermTimes(val p0: Term, val p1: Term)
   extends Permissions
     with BinaryOp[Term] {
 
@@ -960,7 +960,7 @@ object PermTimes extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class IntPermTimes(val p0: Term, val p1: Term)
+class IntPermTimes(val p0: Term, val p1: Term)
   extends Permissions
     with BinaryOp[Term] {
 
@@ -980,7 +980,7 @@ object IntPermTimes extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class PermIntDiv(val p0: Term, val p1: Term)
+class PermIntDiv(val p0: Term, val p1: Term)
   extends Permissions
     with BinaryOp[Term] {
 
@@ -1006,7 +1006,7 @@ object PermDiv extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class PermPlus(val p0: Term, val p1: Term)
+class PermPlus(val p0: Term, val p1: Term)
   extends Permissions
     with BinaryOp[Term] {
 
@@ -1027,7 +1027,7 @@ object PermPlus extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class PermMinus(val p0: Term, val p1: Term)
+class PermMinus(val p0: Term, val p1: Term)
   extends Permissions
     with BinaryOp[Term] {
 
@@ -1052,7 +1052,7 @@ object PermMinus extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class PermLess(val p0: Term, val p1: Term)
+class PermLess(val p0: Term, val p1: Term)
   extends BooleanTerm
     with BinaryOp[Term] {
 
@@ -1079,7 +1079,7 @@ object PermLess extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class PermAtMost(val p0: Term, val p1: Term) extends ComparisonTerm
+class PermAtMost(val p0: Term, val p1: Term) extends ComparisonTerm
   with BinaryOp[Term] {
 
   override val op = "<="
@@ -1094,7 +1094,7 @@ object PermAtMost extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class PermMin(val p0: Term, val p1: Term) extends Permissions
+class PermMin(val p0: Term, val p1: Term) extends Permissions
   with BinaryOp[Term] {
 
   utils.assertSort(p0, "Permission 1st", sorts.Perm)
@@ -1119,7 +1119,7 @@ sealed trait SeqTerm extends Term {
 }
 
 @flyweight
-case class SeqRanged(p0: Term, p1: Term) extends SeqTerm /* with BinaryOp[Term] */ {
+class SeqRanged(val p0: Term, val p1: Term) extends SeqTerm /* with BinaryOp[Term] */ {
   utils.assertSort(p0, "first operand", sorts.Int)
   utils.assertSort(p1, "second operand", sorts.Int)
 
@@ -1130,13 +1130,13 @@ case class SeqRanged(p0: Term, p1: Term) extends SeqTerm /* with BinaryOp[Term] 
 }
 
 @flyweight
-case class SeqNil(elementsSort: Sort) extends SeqTerm with Literal {
+class SeqNil(val elementsSort: Sort) extends SeqTerm with Literal {
   val sort = sorts.Seq(elementsSort)
   override lazy val toString = "Nil"
 }
 
 @flyweight
-case class SeqSingleton(p: Term) extends SeqTerm /* with UnaryOp[Term] */ {
+class SeqSingleton(val p: Term) extends SeqTerm /* with UnaryOp[Term] */ {
   val elementsSort = p.sort
   val sort = sorts.Seq(elementsSort)
 
@@ -1144,7 +1144,7 @@ case class SeqSingleton(p: Term) extends SeqTerm /* with UnaryOp[Term] */ {
 }
 
 @flyweight
-case class SeqAppend(val p0: Term, val p1: Term) extends SeqTerm
+class SeqAppend(val p0: Term, val p1: Term) extends SeqTerm
   with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
@@ -1161,7 +1161,7 @@ object SeqAppend extends ((Term, Term) => SeqTerm) {
 }
 
 @flyweight
-case class SeqDrop(val p0: Term, val p1: Term) extends SeqTerm
+class SeqDrop(val p0: Term, val p1: Term) extends SeqTerm
   with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
@@ -1179,7 +1179,7 @@ object SeqDrop extends ((Term, Term) => SeqTerm) {
 }
 
 @flyweight
-case class SeqTake(val p0: Term, val p1: Term) extends SeqTerm
+class SeqTake(val p0: Term, val p1: Term) extends SeqTerm
   with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
@@ -1197,7 +1197,7 @@ object SeqTake extends ((Term, Term) => SeqTerm) {
 }
 
 @flyweight
-case class SeqLength(val p: Term) extends Term
+class SeqLength(val p: Term) extends Term
   with UnaryOp[Term] {
 
   val sort = sorts.Int
@@ -1212,7 +1212,7 @@ object SeqLength {
 }
 
 @flyweight
-case class SeqAt(val p0: Term, val p1: Term) extends Term
+class SeqAt(val p0: Term, val p1: Term) extends Term
   with BinaryOp[Term] {
 
   val sort = p0.sort.asInstanceOf[sorts.Seq].elementsSort
@@ -1229,7 +1229,7 @@ object SeqAt extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class SeqIn(val p0: Term, val p1: Term) extends BooleanTerm
+class SeqIn(val p0: Term, val p1: Term) extends BooleanTerm
   with BinaryOp[Term] {
 
   override lazy val toString = s"$p1 in $p0"
@@ -1244,7 +1244,7 @@ object SeqIn extends ((Term, Term) => BooleanTerm) {
 }
 
 @flyweight
-case class SeqUpdate(val t0: Term, val t1: Term, val t2: Term)
+class SeqUpdate(val t0: Term, val t1: Term, val t2: Term)
   extends SeqTerm {
 
   val sort = t0.sort.asInstanceOf[sorts.Seq]
@@ -1277,13 +1277,13 @@ sealed trait BinarySetOp extends SetTerm
 }
 
 @flyweight
-case class EmptySet(elementsSort: Sort) extends SetTerm with Literal {
+class EmptySet(val elementsSort: Sort) extends SetTerm with Literal {
   val sort = sorts.Set(elementsSort)
   override lazy val toString = "Ø"
 }
 
 @flyweight
-case class SingletonSet(p: Term) extends SetTerm /* with UnaryOp[Term] */ {
+class SingletonSet(val p: Term) extends SetTerm /* with UnaryOp[Term] */ {
   val elementsSort = p.sort
   val sort = sorts.Set(elementsSort)
 
@@ -1291,7 +1291,7 @@ case class SingletonSet(p: Term) extends SetTerm /* with UnaryOp[Term] */ {
 }
 
 @flyweight
-case class SetAdd(val p0: Term, val p1: Term) extends SetTerm
+class SetAdd(val p0: Term, val p1: Term) extends SetTerm
   with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Set].elementsSort
@@ -1310,7 +1310,7 @@ object SetAdd extends ((Term, Term) => SetTerm) {
 }
 
 @flyweight
-case class SetUnion(val p0: Term, val p1: Term) extends BinarySetOp {
+class SetUnion(val p0: Term, val p1: Term) extends BinarySetOp {
   override val op = "∪"
 }
 
@@ -1322,7 +1322,7 @@ object SetUnion extends ((Term, Term) => SetTerm) {
 }
 
 @flyweight
-case class SetIntersection(val p0: Term, val p1: Term) extends BinarySetOp {
+class SetIntersection(val p0: Term, val p1: Term) extends BinarySetOp {
   override val op = "∩"
 }
 
@@ -1334,7 +1334,7 @@ object SetIntersection extends ((Term, Term) => SetTerm) {
 }
 
 @flyweight
-case class SetSubset(val p0: Term, val p1: Term) extends BooleanTerm
+class SetSubset(val p0: Term, val p1: Term) extends BooleanTerm
   with BinaryOp[Term] {
   override val op = "⊂"
 }
@@ -1347,7 +1347,7 @@ object SetSubset extends ((Term, Term) => BooleanTerm) {
 }
 
 @flyweight
-case class SetDisjoint(val p0: Term, val p1: Term) extends BooleanTerm
+class SetDisjoint(val p0: Term, val p1: Term) extends BooleanTerm
   with BinaryOp[Term] {
   override val op = "disj"
 }
@@ -1360,7 +1360,7 @@ object SetDisjoint extends ((Term, Term) => BooleanTerm) {
 }
 
 @flyweight
-case class SetDifference(val p0: Term, val p1: Term) extends BinarySetOp {
+class SetDifference(val p0: Term, val p1: Term) extends BinarySetOp {
   override val op = "\\"
 }
 
@@ -1372,7 +1372,7 @@ object SetDifference extends ((Term, Term) => SetTerm) {
 }
 
 @flyweight
-case class SetIn(val p0: Term, val p1: Term) extends BooleanTerm
+class SetIn(val p0: Term, val p1: Term) extends BooleanTerm
   with BinaryOp[Term] {
 
   override val op = "in"
@@ -1388,7 +1388,7 @@ object SetIn extends ((Term, Term) => BooleanTerm) {
 }
 
 @flyweight
-case class SetCardinality(val p: Term) extends Term
+class SetCardinality(val p: Term) extends Term
   with UnaryOp[Term] {
 
   val sort = sorts.Int
@@ -1417,13 +1417,13 @@ sealed trait BinaryMultisetOp extends MultisetTerm
 }
 
 @flyweight
-case class EmptyMultiset(elementsSort: Sort) extends MultisetTerm with Literal {
+class EmptyMultiset(val elementsSort: Sort) extends MultisetTerm with Literal {
   val sort = sorts.Multiset(elementsSort)
   override lazy val toString = "Ø"
 }
 
 @flyweight
-case class SingletonMultiset(p: Term) extends MultisetTerm /* with UnaryOp[Term] */ {
+class SingletonMultiset(val p: Term) extends MultisetTerm /* with UnaryOp[Term] */ {
   val elementsSort = p.sort
   val sort = sorts.Multiset(elementsSort)
 
@@ -1431,7 +1431,7 @@ case class SingletonMultiset(p: Term) extends MultisetTerm /* with UnaryOp[Term]
 }
 
 @flyweight
-case class MultisetAdd(val p0: Term, val p1: Term) extends MultisetTerm
+class MultisetAdd(val p0: Term, val p1: Term) extends MultisetTerm
   with BinaryOp[Term] {
 
   val elementsSort = p0.sort.asInstanceOf[sorts.Multiset].elementsSort
@@ -1450,7 +1450,7 @@ object MultisetAdd extends ((Term, Term) => MultisetTerm) {
 }
 
 @flyweight
-case class MultisetUnion(val p0: Term, val p1: Term) extends BinaryMultisetOp {
+class MultisetUnion(val p0: Term, val p1: Term) extends BinaryMultisetOp {
   override val op = "∪"
 }
 
@@ -1462,7 +1462,7 @@ object MultisetUnion extends ((Term, Term) => MultisetTerm) {
 }
 
 @flyweight
-case class MultisetIntersection(val p0: Term, val p1: Term) extends BinaryMultisetOp {
+class MultisetIntersection(val p0: Term, val p1: Term) extends BinaryMultisetOp {
   override val op = "∩"
 }
 
@@ -1474,7 +1474,7 @@ object MultisetIntersection extends ((Term, Term) => MultisetTerm) {
 }
 
 @flyweight
-case class MultisetSubset(val p0: Term, val p1: Term) extends BooleanTerm
+class MultisetSubset(val p0: Term, val p1: Term) extends BooleanTerm
   with BinaryOp[Term] {
   override val op = "⊂"
 }
@@ -1487,7 +1487,7 @@ object MultisetSubset extends ((Term, Term) => BooleanTerm) {
 }
 
 @flyweight
-case class MultisetDifference(val p0: Term, val p1: Term) extends BinaryMultisetOp {
+class MultisetDifference(val p0: Term, val p1: Term) extends BinaryMultisetOp {
   override val op = "\\"
 }
 
@@ -1499,7 +1499,7 @@ object MultisetDifference extends ((Term, Term) => MultisetTerm) {
 }
 
 @flyweight
-case class MultisetCardinality(val p: Term) extends Term
+class MultisetCardinality(val p: Term) extends Term
   with UnaryOp[Term] {
 
   val sort = sorts.Int
@@ -1514,7 +1514,7 @@ object MultisetCardinality extends (Term => MultisetCardinality) {
 }
 
 @flyweight
-case class MultisetCount(val p0: Term, val p1: Term) extends Term
+class MultisetCount(val p0: Term, val p1: Term) extends Term
   with BinaryOp[Term] {
 
   val sort = sorts.Int
@@ -1539,13 +1539,13 @@ sealed trait MapTerm extends Term {
 }
 
 @flyweight
-case class EmptyMap(keySort: Sort, valueSort: Sort) extends MapTerm with Literal {
+class EmptyMap(val keySort: Sort, val valueSort: Sort) extends MapTerm with Literal {
   val sort = sorts.Map(keySort, valueSort)
   override lazy val toString = "Ø"
 }
 
 @flyweight
-case class MapLookup(base: Term, key: Term) extends Term with BinaryOp[Term] {
+class MapLookup(val base: Term, val key: Term) extends Term with BinaryOp[Term] {
   val sort: Sort = p0.sort.asInstanceOf[sorts.Map].valueSort
   override def p0: Term = base
   override def p1: Term = key
@@ -1561,7 +1561,7 @@ object MapLookup extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class MapCardinality(val p: Term) extends Term with UnaryOp[Term] {
+class MapCardinality(val p: Term) extends Term with UnaryOp[Term] {
   val sort = sorts.Int
   override lazy val toString = s"|$p|"
 }
@@ -1574,7 +1574,7 @@ object MapCardinality extends (Term => MapCardinality) {
 }
 
 @flyweight
-case class MapUpdate(val base: Term, val key: Term, val value: Term) extends MapTerm {
+class MapUpdate(val base: Term, val key: Term, val value: Term) extends MapTerm {
   override val sort: sorts.Map = base.sort.asInstanceOf[sorts.Map]
   override val keySort: Sort = sort.keySort
   override val valueSort: Sort = sort.valueSort
@@ -1590,7 +1590,7 @@ object MapUpdate extends ((Term, Term, Term) => MapTerm) {
 }
 
 @flyweight
-case class MapDomain(val p: Term) extends SetTerm with UnaryOp[Term] {
+class MapDomain(val p: Term) extends SetTerm with UnaryOp[Term] {
   override val elementsSort: Sort = p.sort.asInstanceOf[sorts.Map].keySort
   override val sort: sorts.Set = sorts.Set(elementsSort)
   override lazy val toString = s"domain($p)"
@@ -1604,7 +1604,7 @@ object MapDomain extends (Term => SetTerm) {
 }
 
 @flyweight
-case class MapRange(val p: Term) extends SetTerm with UnaryOp[Term] {
+class MapRange(val p: Term) extends SetTerm with UnaryOp[Term] {
   override val elementsSort: Sort = p.sort.asInstanceOf[sorts.Map].valueSort
   override val sort: sorts.Set = sorts.Set(elementsSort)
   override lazy val toString = s"range($p)"
@@ -1622,7 +1622,7 @@ object MapRange extends (Term => SetTerm) {
 sealed trait SnapshotTerm extends Term { val sort = sorts.Snap }
 
 @flyweight
-case class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
+class Combine(val p0: Term, val p1: Term) extends SnapshotTerm
   with BinaryOp[Term] {
 
   utils.assertSort(p0, "first operand", sorts.Snap)
@@ -1636,7 +1636,7 @@ object Combine extends ((Term, Term) => Term) {
 }
 
 @flyweight
-case class First(val p: Term) extends SnapshotTerm
+class First(val p: Term) extends SnapshotTerm
   with UnaryOp[Term]
   /*with PossibleTrigger*/ {
 
@@ -1651,7 +1651,7 @@ object First extends (Term => Term) {
 }
 
 @flyweight
-case class Second(val p: Term) extends SnapshotTerm
+class Second(val p: Term) extends SnapshotTerm
   with UnaryOp[Term]
   /*with PossibleTrigger*/ {
 
@@ -1668,7 +1668,7 @@ object Second extends (Term => Term) {
 /* Quantified permissions */
 
 @flyweight
-case class Lookup(field: String, fvf: Term, at: Term) extends Term {
+class Lookup(val field: String, val fvf: Term, val at: Term) extends Term {
   utils.assertSort(fvf, "field value function", "FieldValueFunction", _.isInstanceOf[sorts.FieldValueFunction])
   utils.assertSort(at, "receiver", sorts.Ref)
 
@@ -1676,7 +1676,7 @@ case class Lookup(field: String, fvf: Term, at: Term) extends Term {
 }
 
 @flyweight
-case class PermLookup(field: String, pm: Term, at: Term) extends Term {
+class PermLookup(val field: String, val pm: Term, val at: Term) extends Term {
   utils.assertSort(pm, "field perm function", "FieldPermFunction", _.isInstanceOf[sorts.FieldPermFunction])
   utils.assertSort(at, "receiver", sorts.Ref)
 
@@ -1684,7 +1684,7 @@ case class PermLookup(field: String, pm: Term, at: Term) extends Term {
 }
 
 @flyweight
-case class Domain(field: String, fvf: Term) extends SetTerm /*with PossibleTrigger*/ {
+class Domain(val field: String, val fvf: Term) extends SetTerm /*with PossibleTrigger*/ {
   utils.assertSort(fvf, "field value function", "FieldValueFunction", _.isInstanceOf[sorts.FieldValueFunction])
 
   val elementsSort = sorts.Ref
@@ -1692,7 +1692,7 @@ case class Domain(field: String, fvf: Term) extends SetTerm /*with PossibleTrigg
 }
 
 @flyweight
-case class FieldTrigger(field: String, fvf: Term, at: Term) extends Term {
+class FieldTrigger(val field: String, val fvf: Term, val at: Term) extends Term {
   utils.assertSort(fvf, "field value function", "FieldValueFunction", _.isInstanceOf[sorts.FieldValueFunction])
   utils.assertSort(at, "receiver", sorts.Ref)
 
@@ -1702,28 +1702,28 @@ case class FieldTrigger(field: String, fvf: Term, at: Term) extends Term {
 /* Quantified predicates */
 
 @flyweight
-case class PredicateLookup(predname: String, psf: Term, args: Seq[Term]) extends Term {
+class PredicateLookup(val predname: String, val psf: Term, val args: Seq[Term]) extends Term {
   utils.assertSort(psf, "predicate snap function", "PredicateSnapFunction", _.isInstanceOf[sorts.PredicateSnapFunction])
 
   val sort = psf.sort.asInstanceOf[sorts.PredicateSnapFunction].codomainSort
 }
 
 @flyweight
-case class PredicatePermLookup(predname: String, pm: Term, args: Seq[Term]) extends Term {
+class PredicatePermLookup(val predname: String, val pm: Term, val args: Seq[Term]) extends Term {
   utils.assertSort(pm, "predicate perm function", "PredicatePermFunction", _.isInstanceOf[sorts.PredicatePermFunction])
 
   val sort = sorts.Perm
 }
 
 @flyweight
-case class PredicateDomain(predname: String, psf: Term) extends SetTerm /*with PossibleTrigger*/ {
+class PredicateDomain(val predname: String, val psf: Term) extends SetTerm /*with PossibleTrigger*/ {
   utils.assertSort(psf, "predicate snap function", "PredicateSnapFunction", _.isInstanceOf[sorts.PredicateSnapFunction])
   val elementsSort = sorts.Snap
   val sort = sorts.Set(elementsSort)
 }
 
 @flyweight
-case class PredicateTrigger(predname: String, psf: Term, args: Seq[Term]) extends Term {
+class PredicateTrigger(val predname: String, val psf: Term, val args: Seq[Term]) extends Term {
   utils.assertSort(psf, "predicate snap function", "PredicateSnapFunction", _.isInstanceOf[sorts.PredicateSnapFunction])
 
   val sort = sorts.Bool
@@ -1731,7 +1731,7 @@ case class PredicateTrigger(predname: String, psf: Term, args: Seq[Term]) extend
 
 /* Magic wands */
 @flyweight(false)
-case class MagicWandSnapshot(abstractLhs: Term, rhsSnapshot: Term) extends Combine(abstractLhs, rhsSnapshot) {
+class MagicWandSnapshot(val abstractLhs: Term, val rhsSnapshot: Term) extends Combine(abstractLhs, rhsSnapshot) {
   utils.assertSort(abstractLhs, "abstract lhs", sorts.Snap)
   utils.assertSort(rhsSnapshot, "rhs", sorts.Snap)
 
@@ -1759,7 +1759,7 @@ object MagicWandSnapshot {
 }
 
 @flyweight
-case class MagicWandChunkTerm(chunk: MagicWandChunk) extends Term {
+class MagicWandChunkTerm(val chunk: MagicWandChunk) extends Term {
   override val sort = sorts.Unit /* TODO: Does this make sense? */
   override lazy val toString = s"wand@${chunk.id.ghostFreeWand.pos}}"
 }
@@ -1878,7 +1878,7 @@ object PsfTop extends (String => Identifier) {
  * because they are optimised away if wrappee `t` already has sort `to`.
  */
 @flyweight
-case class SortWrapper(val t: Term, val to: Sort)
+class SortWrapper(val t: Term, val to: Sort)
   extends Term {
 
   assert((t.sort == sorts.Snap || to == sorts.Snap) && t.sort != to,
@@ -1900,7 +1900,7 @@ object SortWrapper {
 /* Other terms */
 
 @flyweight
-case class Distinct(val ts: Set[Symbol]) extends BooleanTerm {
+class Distinct(val ts: Set[Symbol]) extends BooleanTerm {
   assert(ts.nonEmpty, "Distinct requires at least one term")
 
   override lazy val toString = s"Distinct($ts)"
@@ -1913,7 +1913,7 @@ object Distinct extends (Set[Symbol] => Term) {
 }
 
 @flyweight
-case class Let(val bindings: Map[Var, Term], val body: Term) extends Term {
+class Let(val bindings: Map[Var, Term], val body: Term) extends Term {
   assert(bindings.nonEmpty, "Let needs to bind at least one variable")
 
   val sort = body.sort

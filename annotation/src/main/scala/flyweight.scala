@@ -30,7 +30,7 @@ object flyweightMacro {
 
     // Extract information from class declaration.
     val (className, fields, bases, body) = try {
-      val q"case class $className $_(..$fields) extends ..$bases { ..$body }" = classDecl
+      val q"class $className $_(..$fields) extends ..$bases { ..$body }" = classDecl
       // TODO: Assert that class implements Term trait.
       (className, fields, bases, body)
     } catch {
