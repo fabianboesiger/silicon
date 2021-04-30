@@ -437,8 +437,8 @@ object heuristicsSupporter extends SymbolicExecutionRules {
 
     val optEs =
       ts map {
-        case True() => Some(ast.TrueLit()())
-        case False() => Some(ast.FalseLit()())
+        case True => Some(ast.TrueLit()())
+        case False => Some(ast.FalseLit()())
         case IntLiteral(n) => Some(ast.IntLit(n)())
         case t =>
           bindings.find(p => p._2 == t).map(_._1)

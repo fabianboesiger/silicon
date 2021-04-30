@@ -70,8 +70,8 @@ case class Times(left: PropertyExpression[kinds.Permission], right: PropertyExpr
 case class Div(left: PropertyExpression[kinds.Permission], right: PropertyExpression[kinds.Permission]) extends PropertyExpression[kinds.Permission]
 
 sealed abstract class BooleanLiteral extends PropertyExpression[kinds.Boolean]
-case class True() extends BooleanLiteral
-case class False() extends BooleanLiteral
+case object True extends BooleanLiteral
+case object False extends BooleanLiteral
 
 case class PermissionLiteral(numerator: BigInt, denominator: BigInt) extends PropertyExpression[kinds.Permission]
 
@@ -91,4 +91,4 @@ case class ArgumentAccess(chunk: ChunkPlaceholder) extends PropertyExpression[ki
 case class PermissionAccess(chunk: ChunkPlaceholder) extends PropertyExpression[kinds.Permission]
 case class ValueAccess(chunk: ChunkPlaceholder) extends PropertyExpression[kinds.Value]
 
-case class Null() extends PropertyExpression[kinds.Argument]
+case object Null extends PropertyExpression[kinds.Argument]

@@ -860,7 +860,7 @@ method f$__init__() returns ($succ: Bool)
   assert $succ ==> ($struct_get($struct_loc(self, 1)): Int) > ($struct_get($struct_loc(self, 2)): Int)
 }
 
-method f$assert_true() returns ($succ: Bool, $res: Int)
+method f$assert_True returns ($succ: Bool, $res: Int)
 {
   var msg: $Struct
   var block: $Struct

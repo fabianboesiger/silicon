@@ -36,7 +36,7 @@ abstract class BasicDescription extends ResourceDescription {
     val noPerm = PermissionLiteral(0, 1)
     val permNonZero = And(GreaterThan(PermissionAccess(c1), noPerm), GreaterThan(PermissionAccess(c2), noPerm))
     val condition = And(permNonZero, Not(Equals(ValueAccess(c1), ValueAccess(c2))))
-    val expression = ForEach(Seq(c1, c2), Check(condition, Not(Equals(ArgumentAccess(c1), ArgumentAccess(c2))), True()))
+    val expression = ForEach(Seq(c1, c2), Check(condition, Not(Equals(ArgumentAccess(c1), ArgumentAccess(c2))), True))
     val description = "Different values imply different arguments"
     Property(expression, "valNeqImpliesLocNeq", description)
   }
@@ -56,7 +56,7 @@ class FieldDescription extends BasicDescription {
   }
 
   def permImpliesNonNull: Property = {
-    val exp = Implies(GreaterThan(PermissionAccess(This()), PermissionLiteral(0, 1)), Not(Equals(ArgumentAccess(This()), Null())))
+    val exp = Implies(GreaterThan(PermissionAccess(This()), PermissionLiteral(0, 1)), Not(Equals(ArgumentAccess(This()), Null)))
     Property(exp, "permImpliesNonNull", "Permission implies non-null receiver")
   }
 
@@ -68,7 +68,7 @@ class FieldDescription extends BasicDescription {
     val greaterThan = GreaterThan(Plus(perm1, perm2), PermissionLiteral(1, 1))
     val neq = Not(Equals(ArgumentAccess(c1), ArgumentAccess(c2)))
     val description = "Permission sum greater than one implies non-equal receivers"
-    Property(ForEach(Seq(c1, c2), Check(greaterThan, neq, True())), "permUpperBoundDiseq", description)
+    Property(ForEach(Seq(c1, c2), Check(greaterThan, neq, True)), "permUpperBoundDiseq", description)
   }
 
   override def toString = "Field"

@@ -113,7 +113,7 @@ case class StateEvaluator(label: Option[String], state: State, model: ModelEvalu
   def evaluateReference(expression: ast.Exp): String =
     expression match {
       case ast.NullLit() =>
-        model.evaluateReference(terms.Null())
+        model.evaluateReference(terms.Null)
       case variable: ast.LocalVar =>
         store(variable)
       case ast.FieldAccess(receiver, ast.Field(field, _)) =>

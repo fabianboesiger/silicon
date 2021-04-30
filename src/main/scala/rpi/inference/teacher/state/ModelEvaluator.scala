@@ -34,8 +34,8 @@ case class ModelEvaluator(model: Model) {
     */
   def evaluateBoolean(term: Term): Boolean =
     term match {
-      case terms.True() => true
-      case terms.False() => false
+      case terms.True => true
+      case terms.False => false
       case terms.Var(identifier, _) =>
         val value = getString(identifier.name)
         value.toBoolean
@@ -81,7 +81,7 @@ case class ModelEvaluator(model: Model) {
     */
   def evaluateReference(term: Term): String =
     term match {
-      case terms.Null() =>
+      case terms.Null =>
         getString(key = "$Ref.null")
       case terms.Var(identifier, _) =>
         getString(identifier.name)
