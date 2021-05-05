@@ -15,6 +15,27 @@ import viper.silicon.state.{Identifier, MagicWandChunk, MagicWandIdentifier, Sor
 import viper.silicon.verifier.Verifier
 import viper.silicon.annotation.flyweight
 
+object Depths {
+  import scala.collection.mutable.HashMap
+
+  var map: HashMap[String, Seq[Int]] = HashMap.empty
+
+  def compute(term: Term): Unit = {
+    map.updateWith(term.getClass.getSimpleName)(entry => Some(entry match {
+      case None => term.depth() :: Nil
+      case Some(list) => list.appended(term.depth())
+    }))
+  }
+
+  def print: Unit = {
+    map.foreach({case (k, v) => {
+      val avg = v.sum.asInstanceOf[Float] / v.length
+      val stdev = scala.math.sqrt(v.map(a => (avg - a) * (avg - a)).sum / v.length)
+      println(s"$k,${v.length},${v.min},${v.max},$avg,$stdev")
+    }})
+  }
+}
+
 sealed trait Node {
   def toString: String
 }
@@ -335,6 +356,20 @@ sealed trait Term extends Node {
       case and: And => and.subterms flatMap (_.topLevelConjuncts)
       case other => Vector(other)
     }
+  }
+
+  override def equals(other: Any): Boolean = {
+    Depths.compute(this)
+    this.eq(other.asInstanceOf[AnyRef])
+  }
+
+  def depth(): Int = {
+    val subterms = viper.silicon.state.utils.subterms(this)
+
+    if (subterms.isEmpty)
+      1
+    else
+      subterms.map(term => term.depth()).max + 1
   }
 }
 

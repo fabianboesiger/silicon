@@ -90,6 +90,7 @@ object flyweightMacro {
           else
             q""
         }
+
         ..$body
       }
 

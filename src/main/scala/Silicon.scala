@@ -187,7 +187,7 @@ class Silicon(val reporter: PluginAwareReporter, private var debugInfo: Seq[(Str
     // TODO: Check consistency of cfgs.
     val consistencyErrors = utils.consistency.check(program)
 
-    if (consistencyErrors.nonEmpty) {
+    val result = if (consistencyErrors.nonEmpty) {
       SilFailure(consistencyErrors)
     } else {
       var result: Option[SilVerificationResult] = None
@@ -230,6 +230,9 @@ class Silicon(val reporter: PluginAwareReporter, private var debugInfo: Seq[(Str
       assert(result.nonEmpty, "The result of the verification run wasn't stored appropriately")
       result.get
     }
+
+    viper.silicon.state.terms.Depths.print
+    result
   }
 
   private def runVerifier(program: ast.Program, cfgs: Seq[SilverCfg]): List[Failure] = {
