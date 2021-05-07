@@ -22,7 +22,7 @@ object Depths {
 
   def compute(term: Term): Unit = {
     map.updateWith(term.getClass.getSimpleName)(entry => Some(entry match {
-      case None => term.depth() :: Nil
+      case None => term.count() :: Nil
       case Some(list) => list.appended(term.depth())
     }))
   }
@@ -370,6 +370,15 @@ sealed trait Term extends Node {
       1
     else
       subterms.map(term => term.depth()).max + 1
+  }
+
+  def count(): Int = {
+    val subterms = viper.silicon.state.utils.subterms(this)
+
+    if (subterms.isEmpty)
+      1
+    else
+      subterms.map(term => term.count()).sum + 1
   }
 }
 
