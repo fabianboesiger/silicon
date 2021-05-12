@@ -1,0 +1,10 @@
+<siliconPlugin>
+	<macroAnnotationName>flyweight</macroAnnotationName>
+	<injects>
+		<members>
+			<member>def subterms(term: Term): Seq[Term] = ???</member>
+		</members>
+		<functions>
+		</functions>
+	</injects>
+</siliconPlugin>
