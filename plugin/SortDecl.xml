@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(sort: Sort = sort) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(sort: Sort) = $qmark$qmark$qmark</function><function>def unapply(t: SortDecl) = $qmark$qmark$qmark</function></functions>
+      </info>

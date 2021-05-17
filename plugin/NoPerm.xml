@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy() = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply() = $qmark$qmark$qmark</function><function>def unapply(t: NoPerm) = $qmark$qmark$qmark</function></functions>
+      </info>

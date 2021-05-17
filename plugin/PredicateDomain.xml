@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(predname: String = predname, psf: Term = psf) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(predname: String, psf: Term) = $qmark$qmark$qmark</function><function>def unapply(t: PredicateDomain) = $qmark$qmark$qmark</function></functions>
+      </info>

@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(v: Var = v) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(v: Var) = $qmark$qmark$qmark</function><function>def unapply(t: IsValidPermVar) = $qmark$qmark$qmark</function></functions>
+      </info>

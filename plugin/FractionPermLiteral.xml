@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(r: Rational = r) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(r: Rational) = $qmark$qmark$qmark</function><function>def unapply(t: FractionPermLiteral) = $qmark$qmark$qmark</function><function>def _apply(r: Rational): PermLiteral = $qmark$qmark$qmark</function></functions>
+      </info>

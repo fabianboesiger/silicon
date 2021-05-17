@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(q: Quantifier = q, vars: Seq[Var] = vars, body: Term = body, triggers: Seq[Trigger] = triggers, name: String = name, isGlobal: Boolean = isGlobal) = $qmark$qmark$qmark</member><member>def instantiate(terms: Seq[Term]): Term = $qmark$qmark$qmark</member><member>def toString(withTriggers: Boolean = false) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(q: Quantifier, vars: Seq[Var], body: Term, triggers: Seq[Trigger], name: String, isGlobal: Boolean) = $qmark$qmark$qmark</function><function>def unapply(t: Quantification) = $qmark$qmark$qmark</function><function>def apply(q: Quantifier, vars: Seq[Var], tBody: Term, triggers: Seq[Trigger]): Quantification = $qmark$qmark$qmark</function><function>def apply(q: Quantifier, vars: Seq[Var], tBody: Term, triggers: Seq[Trigger], name: String): Quantification = $qmark$qmark$qmark</function></functions>
+      </info>

@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(id: Identifier = id, args: Seq[Var] = args, body: Term = body) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(id: Identifier, args: Seq[Var], body: Term) = $qmark$qmark$qmark</function><function>def unapply(t: MacroDecl) = $qmark$qmark$qmark</function></functions>
+      </info>

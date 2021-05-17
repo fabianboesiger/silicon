@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(chunk: MagicWandChunk = chunk) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(chunk: MagicWandChunk) = $qmark$qmark$qmark</function><function>def unapply(t: MagicWandChunkTerm) = $qmark$qmark$qmark</function></functions>
+      </info>
