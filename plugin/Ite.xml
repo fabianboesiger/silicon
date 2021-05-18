@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(t0: Term = t0, t1: Term = t1, t2: Term = t2) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(t0: Term, t1: Term, t2: Term) = $qmark$qmark$qmark</function><function>def unapply(t: Ite) = $qmark$qmark$qmark</function><function>def _apply(e0: Term, e1: Term, e2: Term): Term = $qmark$qmark$qmark</function></functions>
-      </info>

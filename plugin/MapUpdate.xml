@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(base: Term = base, key: Term = key, value: Term = value) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(base: Term, key: Term, value: Term) = $qmark$qmark$qmark</function><function>def unapply(t: MapUpdate) = $qmark$qmark$qmark</function><function>def _apply(t0: Term, t1: Term, t2: Term): MapUpdate = $qmark$qmark$qmark</function></functions>
-      </info>

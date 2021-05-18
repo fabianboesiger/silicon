@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(p0: Term = p0, p1: Term = p1) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(p0: Term, p1: Term) = $qmark$qmark$qmark</function><function>def unapply(t: MultisetIntersection) = $qmark$qmark$qmark</function><function>def _apply(t0: Term, t1: Term): MultisetIntersection = $qmark$qmark$qmark</function></functions>
-      </info>

@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight(false)</macroAnnotationName>
-        <members><member>def merge(other: MagicWandSnapshot, branchConditions: Stack[Term]): MagicWandSnapshot = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(abstractLhs: Term, rhsSnapshot: Term) = $qmark$qmark$qmark</function><function>def unapply(t: MagicWandSnapshot) = $qmark$qmark$qmark</function><function>def apply(snapshot: Term): MagicWandSnapshot = $qmark$qmark$qmark</function></functions>
-      </info>

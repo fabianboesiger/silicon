@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(p: Seq[Term] = p) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(p: Seq[Term]) = $qmark$qmark$qmark</function><function>def unapply(t: Trigger) = $qmark$qmark$qmark</function><function>def apply(t: Term): Trigger = $qmark$qmark$qmark</function></functions>
-      </info>

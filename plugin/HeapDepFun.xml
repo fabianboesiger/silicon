@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(id: Identifier = id, argSorts: Seq[Sort] = argSorts, resultSort: Sort = resultSort) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(id: Identifier, argSorts: Seq[Sort], resultSort: Sort) = $qmark$qmark$qmark</function><function>def unapply(t: HeapDepFun) = $qmark$qmark$qmark</function><function>def apply(id: Identifier, argSort: Sort, resultSort: Sort): HeapDepFun = $qmark$qmark$qmark</function></functions>
-      </info>

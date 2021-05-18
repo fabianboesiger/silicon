@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(id: Identifier = id, sort: Sort = sort) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(id: Identifier, sort: Sort) = $qmark$qmark$qmark</function><function>def unapply(t: Var) = $qmark$qmark$qmark</function></functions>
-      </info>

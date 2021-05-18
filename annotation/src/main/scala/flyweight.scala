@@ -20,7 +20,7 @@ object flyweightMacro {
         ..$classDefns
       }
 
-      object ${companionName} extends ..$_ {
+      object $companionName extends ..$_ {
         ..$companionDefns
       }
     """ = output
@@ -29,6 +29,7 @@ object flyweightMacro {
       try {
         val q"$_ def $methodName(...$methodFields): $methodReturnType = $methodBody" = member
         val rewrittenMember = q"def $methodName(...$methodFields): $methodReturnType = ???"
+        //println(s"Generating member: $rewrittenMember")
         Some(<member>{rewrittenMember.toString}</member>)
       } catch {
         case _: MatchError => None
@@ -41,6 +42,7 @@ object flyweightMacro {
       try {
         val q"$_ def $methodName(...$methodFields): $methodReturnType = $methodBody" = function
         val rewrittenFunction = q"def $methodName(...$methodFields): $methodReturnType = ???"
+        //println(s"Generating function: $rewrittenFunction")
         Some(<function>{rewrittenFunction.toString}</function>)
       } catch {
         case _: MatchError => None
@@ -62,11 +64,11 @@ object flyweightMacro {
         <functions>{functions}</functions>
       </info>
 
-    if (!Files.exists(Paths.get("plugin"))) {
-      Files.createDirectory(Paths.get("plugin"))
+    if (!Files.exists(Paths.get(".plugin"))) {
+      Files.createDirectory(Paths.get(".plugin"))
     }
 
-    XML.save(s"plugin/${className.toString()}.xml", xml)
+    XML.save(s".plugin/${className.toString}.xml", xml)
   }
 
 
