@@ -27,8 +27,8 @@ object flyweightMacro {
 
     val members = classDefns.map(member => {
       try {
-        val q"$_ def $methodName(...$methodFields): $methodReturnType = $methodBody" = member
-        val rewrittenMember = q"def $methodName(...$methodFields): $methodReturnType = ???"
+        val q"$methodMods def $methodName(...$methodFields): $methodReturnType = $methodBody" = member
+        val rewrittenMember = q"$methodMods def $methodName(...$methodFields): $methodReturnType = ???"
         //println(s"Generating member: $rewrittenMember")
         Some(<member>{rewrittenMember.toString}</member>)
       } catch {
@@ -40,8 +40,8 @@ object flyweightMacro {
 
     val functions = companionDefns.map(function => {
       try {
-        val q"$_ def $methodName(...$methodFields): $methodReturnType = $methodBody" = function
-        val rewrittenFunction = q"def $methodName(...$methodFields): $methodReturnType = ???"
+        val q"$functionMods def $methodName(...$methodFields): $methodReturnType = $methodBody" = function
+        val rewrittenFunction = q"$functionMods def $methodName(...$methodFields): $methodReturnType = ???"
         //println(s"Generating function: $rewrittenFunction")
         Some(<function>{rewrittenFunction.toString}</function>)
       } catch {
@@ -52,8 +52,8 @@ object flyweightMacro {
       .map(_.get)
 
     val macroName = c.prefix.tree match {
-      case q"new $name" => name.toString
       case q"new $name(..$_)" => name.toString
+      case q"new $name" => name.toString
       case _ => assert(false, "Macro name not found")
     }
 
@@ -159,7 +159,7 @@ object flyweightMacro {
         import scala.collection.concurrent.TrieMap
         var pool = new TrieMap[(..${fieldTypes}), $returnType]
 
-        def apply(..$fields) = {
+        def apply(..$fields): $returnType = {
           pool.get((..${fieldNames})) match {
             case None =>
               val term = ${
@@ -177,7 +177,14 @@ object flyweightMacro {
 
         ${ // Create unapply method only if not already defined.
           if (!hasUnapplyMethod)
-            q"""def unapply(t: $className) = {
+            q"""def unapply(t: $className): ${
+              if (fields.isEmpty)
+                tq"Boolean"
+              else if (fields.length == 1)
+                tq"Option[${fieldTypes.head}]"
+              else
+                tq"Option[(..$fieldTypes)]"
+            } = {
                       ${
               // Turns out unapply on case classes without fields return true instead of an Option.
               if (fields.isEmpty)
