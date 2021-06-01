@@ -197,7 +197,7 @@ object producer extends ProductionRules {
                         (continuation: (State, Verifier) => VerificationResult)
                         : VerificationResult = {
 
-    v.logger.debug(s"\nPRODUCE ${viper.silicon.utils.ast.sourceLineColumn(a)}: $a")
+    v.logger.debug(s"\nPRODUCE ${viper.silicon.utils.ast.sourceLineColumn(a)}: $a (${a.getClass.getSimpleName})")
     v.logger.debug(v.stateFormatter.format(s, v.decider.pcs))
 
     val Q: (State, Verifier) => VerificationResult = (state, verifier) =>

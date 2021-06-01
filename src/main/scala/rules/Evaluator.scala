@@ -102,7 +102,7 @@ object evaluator extends EvaluationRules {
             | _: ast.WildcardPerm | _: ast.FieldAccess =>
 
       case _ =>
-        v.logger.debug(s"\nEVAL ${viper.silicon.utils.ast.sourceLineColumn(e)}: $e")
+        v.logger.debug(s"\nEVAL ${viper.silicon.utils.ast.sourceLineColumn(e)}: $e (${e.getClass.getSimpleName})")
         v.logger.debug(v.stateFormatter.format(s, v.decider.pcs))
         if (s.partiallyConsumedHeap.nonEmpty)
           v.logger.debug("pcH = " + s.partiallyConsumedHeap.map(v.stateFormatter.format).mkString("", ",\n     ", ""))
@@ -145,7 +145,6 @@ object evaluator extends EvaluationRules {
   protected def eval2(s: State, e: ast.Exp, pve: PartialVerificationError, v: Verifier)
                      (Q: (State, Term, Verifier) => VerificationResult)
                      : VerificationResult = {
-
     val resultTerm = e match {
       case _: ast.TrueLit => Q(s, True(), v)
       case _: ast.FalseLit => Q(s, False(), v)
@@ -307,6 +306,7 @@ object evaluator extends EvaluationRules {
           evalImplies(s1, t0, e1, implies.info == FromShortCircuitingAnd, pve, v1)(Q))
 
       case ast.CondExp(e0, e1, e2) =>
+        println("CondExp")
         eval(s, e0, pve, v)((s1, t0, v1) =>
           joiner.join[Term, Term](s1, v1)((s2, v2, QB) =>
             brancher.branch(s2, t0, v2)(
@@ -319,7 +319,7 @@ object evaluator extends EvaluationRules {
               case Seq(entry) => // One branch is dead
                 (entry.s, entry.data)
               case Seq(entry1, entry2) => // Both branches are alive
-                (entry1.s.merge(entry2.s), Ite(t0, entry1.data, entry2.data))
+                (entry1.pathConditionAwareMerge(entry2), Ite(t0, entry1.data, entry2.data))
               case _ =>
                 sys.error(s"Unexpected join data entries: $entries")}
             (s2, result)

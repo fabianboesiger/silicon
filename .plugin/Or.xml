@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(ts: Seq[Term] = ts) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(ts: Seq[Term]) = $qmark$qmark$qmark</function><function>def unapply(t: Or) = $qmark$qmark$qmark</function><function>def apply(ts: _root_.scala.&lt;repeated&gt;[Term])(implicit d: DummyImplicit): Term = $qmark$qmark$qmark</function><function>def apply(ts: Iterable[Term]): Term = $qmark$qmark$qmark</function><function>def _apply(_ts: Seq[Term]): Term = $qmark$qmark$qmark</function></functions>
+      </info>

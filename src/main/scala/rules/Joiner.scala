@@ -6,12 +6,19 @@
 
 package viper.silicon.rules
 
-import viper.silicon.decider.RecordedPathConditions
+import viper.silicon.Stack
+import viper.silicon.decider.{PathConditionStackLayer, RecordedPathConditions}
+import viper.silicon.interfaces.state.GeneralChunk
 import viper.silicon.interfaces.{Success, VerificationResult}
-import viper.silicon.state.State
+import viper.silicon.state.{State, Heap}
+import viper.silicon.state.terms.{And, Implies, Term, True}
 import viper.silicon.verifier.Verifier
 
-case class JoinDataEntry[D](s: State, data: D, pathConditions: RecordedPathConditions)
+case class JoinDataEntry[D](s: State, data: D, pathConditions: RecordedPathConditions) {
+  def pathConditionAwareMerge(other: JoinDataEntry[D]): State = {
+    State.merge(this.s, this.pathConditions, other.s, other.pathConditions)
+  }
+}
 
 trait JoiningRules extends SymbolicExecutionRules {
   def join[D, JD](s: State, v: Verifier)
@@ -27,6 +34,7 @@ object joiner extends JoiningRules {
                  (merge: Seq[JoinDataEntry[D]] => (State, JD))
                  (Q: (State, JD, Verifier) => VerificationResult)
                  : VerificationResult = {
+    println(s"Joining: ${Thread.currentThread().getStackTrace().map(e => e.getFileName() + " " + e.getLineNumber()).lift(2)}")
 
     var entries: Seq[JoinDataEntry[D]] = Vector.empty
 

@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(p: Term = p) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(p: Term) = $qmark$qmark$qmark</function><function>def unapply(t: SingletonSet) = $qmark$qmark$qmark</function></functions>
+      </info>

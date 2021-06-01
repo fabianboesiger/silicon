@@ -179,7 +179,7 @@ object consumer extends ConsumptionRules {
      * time permissions have been consumed.
      */
 
-    v.logger.debug(s"\nCONSUME ${viper.silicon.utils.ast.sourceLineColumn(a)}: $a")
+    v.logger.debug(s"\nCONSUME ${viper.silicon.utils.ast.sourceLineColumn(a)}: $a (${a.getClass.getSimpleName})")
     v.logger.debug(v.stateFormatter.format(s, v.decider.pcs))
     v.logger.debug("h = " + v.stateFormatter.format(h))
     if (s.reserveHeaps.nonEmpty)

@@ -31,6 +31,7 @@ object brancher extends BranchingRules {
             (fThen: (State, Verifier) => VerificationResult,
              fElse: (State, Verifier) => VerificationResult)
             : VerificationResult = {
+    println(s"Branching: ${Thread.currentThread().getStackTrace().map(e => e.getFileName() + " " + e.getLineNumber()).lift(2)}")
 
     val negatedCondition = Not(condition)
     val parallelizeElseBranch = s.parallelizeBranches && !s.underJoin

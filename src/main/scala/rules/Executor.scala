@@ -224,7 +224,7 @@ object executor extends ExecutionRules {
     stmt match {
       case _: ast.Seqn =>
       case _ =>
-        v.logger.debug(s"\nEXECUTE ${viper.silicon.utils.ast.sourceLineColumn(stmt)}: $stmt")
+        v.logger.debug(s"\nEXECUTE ${viper.silicon.utils.ast.sourceLineColumn(stmt)}: $stmt (${stmt.getClass.getSimpleName})")
         v.logger.debug(v.stateFormatter.format(s, v.decider.pcs))
         if (s.reserveHeaps.nonEmpty)
           v.logger.debug("hR = " + s.reserveHeaps.map(v.stateFormatter.format).mkString("", ",\n     ", ""))

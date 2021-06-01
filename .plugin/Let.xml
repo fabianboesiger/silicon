@@ -1,0 +1,5 @@
+<info>
+        <macroAnnotationName>flyweight</macroAnnotationName>
+        <members><member>def copy(bindings: Map[Var, Term] = bindings, body: Term = body) = $qmark$qmark$qmark</member></members>
+        <functions><function>def apply(bindings: Map[Var, Term], body: Term) = $qmark$qmark$qmark</function><function>def unapply(t: Let) = $qmark$qmark$qmark</function><function>def apply(v: Var, t: Term, body: Term): Term = $qmark$qmark$qmark</function><function>def apply(vs: Seq[Var], ts: Seq[Term], body: Term): Term = $qmark$qmark$qmark</function><function>def _apply(bindings: Map[Var, Term], body: Term): Term = $qmark$qmark$qmark</function></functions>
+      </info>
