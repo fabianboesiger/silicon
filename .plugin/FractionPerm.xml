@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(n: Term = n, d: Term = d) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(n: Term, d: Term) = $qmark$qmark$qmark</function><function>def unapply(t: FractionPerm) = $qmark$qmark$qmark</function><function>def _apply(n: Term, d: Term): Permissions = $qmark$qmark$qmark</function></functions>
-      </info>

@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(field: String = field, fvf: Term = fvf) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(field: String, fvf: Term) = $qmark$qmark$qmark</function><function>def unapply(t: Domain) = $qmark$qmark$qmark</function></functions>
-      </info>

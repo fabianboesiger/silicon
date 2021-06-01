@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(keySort: Sort = keySort, valueSort: Sort = valueSort) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(keySort: Sort, valueSort: Sort) = $qmark$qmark$qmark</function><function>def unapply(t: EmptyMap) = $qmark$qmark$qmark</function></functions>
-      </info>

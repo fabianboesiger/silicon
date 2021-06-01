@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(ts: Set[Symbol] = ts) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(ts: Set[Symbol]) = $qmark$qmark$qmark</function><function>def unapply(t: Distinct) = $qmark$qmark$qmark</function><function>def _apply(ts: Set[Symbol]): Term = $qmark$qmark$qmark</function></functions>
-      </info>

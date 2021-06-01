@@ -1,5 +1,0 @@
-<info>
-        <macroAnnotationName>flyweight</macroAnnotationName>
-        <members><member>def copy(n: BigInt = n) = $qmark$qmark$qmark</member><member>def $plus(m: Int) = $qmark$qmark$qmark</member><member>def $minus(m: Int) = $qmark$qmark$qmark</member><member>def $times(m: Int) = $qmark$qmark$qmark</member><member>def $div(m: Int) = $qmark$qmark$qmark</member></members>
-        <functions><function>def apply(n: BigInt) = $qmark$qmark$qmark</function><function>def unapply(t: IntLiteral) = $qmark$qmark$qmark</function></functions>
-      </info>
