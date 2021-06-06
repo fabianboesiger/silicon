@@ -319,7 +319,7 @@ object evaluator extends EvaluationRules {
               case Seq(entry) => // One branch is dead
                 (entry.s, entry.data)
               case Seq(entry1, entry2) => // Both branches are alive
-                (entry1.pathConditionAwareMerge(entry2), Ite(t0, entry1.data, entry2.data))
+                (entry1.s.merge(entry2.s), Ite(t0, entry1.data, entry2.data))
               case _ =>
                 sys.error(s"Unexpected join data entries: $entries")}
             (s2, result)

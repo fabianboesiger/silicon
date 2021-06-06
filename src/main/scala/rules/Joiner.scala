@@ -15,9 +15,11 @@ import viper.silicon.state.terms.{And, Implies, Term, True}
 import viper.silicon.verifier.Verifier
 
 case class JoinDataEntry[D](s: State, data: D, pathConditions: RecordedPathConditions) {
-  def pathConditionAwareMerge(other: JoinDataEntry[D]): State = {
+  /*
+  def pathConditionAwasreMerge(other: JoinDataEntry[D]): State = {
     State.merge(this.s, this.pathConditions, other.s, other.pathConditions)
   }
+  */
 }
 
 trait JoiningRules extends SymbolicExecutionRules {
@@ -64,6 +66,57 @@ object joiner extends JoiningRules {
         Success()
       } else {
         val (sJoined, dataJoined) = merge(entries)
+
+        entries foreach (entry => {
+          val pcs = entry.pathConditions.conditionalized
+          v.decider.prover.comment("Joined path conditions")
+          v.decider.assume(pcs)
+        })
+
+        Q(sJoined, dataJoined, v)
+      }
+    }
+  }
+}
+
+// Same as joiner, but merge takes a Verifier as an additional input argument.
+// This allows us to do more complete state merges.
+object moreCompleteJoiner {
+  def join[D, JD](s: State, v: Verifier)
+                 (block: (State, Verifier, (State, D, Verifier) => VerificationResult) => VerificationResult)
+                 (merge: (Seq[JoinDataEntry[D]], Verifier) => (State, JD))
+                 (Q: (State, JD, Verifier) => VerificationResult)
+  : VerificationResult = {
+    println(s"Joining: ${Thread.currentThread().getStackTrace().map(e => e.getFileName() + " " + e.getLineNumber()).lift(2)}")
+
+    var entries: Seq[JoinDataEntry[D]] = Vector.empty
+
+    executionFlowController.locally(s, v)((s1, v1) => {
+      val preMark = v1.decider.setPathConditionMark()
+      val s2 = s1.copy(underJoin = true)
+
+      block(s2, v1, (s3, data, v2) => {
+        /* In order to prevent mismatches between different final states of the evaluation
+         * paths that are to be joined, we reset certain state properties that may have been
+         * affected by the evaluation - such as the store (by let-bindings) or the heap (by
+         * state consolidations) to their initial values.
+         */
+        val s4 = s3.copy(g = s1.g,
+          h = s1.h,
+          oldHeaps = s1.oldHeaps,
+          underJoin = s1.underJoin)
+        entries :+= JoinDataEntry(s4, data, v2.decider.pcs.after(preMark))
+        Success()
+      })
+    }) && {
+      if (entries.isEmpty) {
+        /* No block data was collected, which we interpret as all branches through
+         * the block being infeasible. In turn, we assume that the overall verification path
+         * is infeasible. Instead of calling Q, we therefore terminate this path.
+         */
+        Success()
+      } else {
+        val (sJoined, dataJoined) = merge(entries, v)
 
         entries foreach (entry => {
           val pcs = entry.pathConditions.conditionalized
