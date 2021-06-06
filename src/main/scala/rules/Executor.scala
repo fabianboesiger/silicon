@@ -24,6 +24,8 @@ import viper.silicon.state.terms.predef.`?r`
 import viper.silicon.utils.freshSnap
 import viper.silicon.verifier.Verifier
 import viper.silicon.{ExecuteRecord, Map, MethodCallRecord, SymbExLogger}
+import viper.silicon.rules.execJoiner
+import viper.silver.cfg.ConditionalEdge
 
 trait ExecutionRules extends SymbolicExecutionRules {
   def exec(s: State,
@@ -78,18 +80,58 @@ object executor extends ExecutionRules {
 
   private def follows(s: State,
                       edges: Seq[SilverEdge],
-                      @unused pvef: ast.Exp => PartialVerificationError,
+                      pvef: ast.Exp => PartialVerificationError,
                       v: Verifier)
                      (Q: (State, Verifier) => VerificationResult)
                      : VerificationResult = {
 
+    /*
     if (edges.isEmpty) {
       Q(s, v)
-    } else
+    } else {
       edges.foldLeft(Success(): VerificationResult) {
         case (fatalResult: FatalResult, _) => fatalResult
         case (_, edge) => follow(s, edge, v)(Q)
       }
+    }
+    */
+
+    edges match {
+      case Seq() => Q(s, v)
+      case Seq(edge) => follow(s, edge, v)(Q)
+      case edges: Seq[ConditionalEdge[ast.Stmt, ast.Exp]] if edges.length == 2 =>
+        val edge1 = edges.head
+        val edge2 = edges.last
+        // IMPORTANT: Here we assume that edge1.condition is the negation of edge2.condition.
+        assert((edge1.condition, edge2.condition) match {
+          case (exp1, Not(exp2)) if exp1 == exp2 => true
+          case (Not(exp1), exp2) if exp1 == exp2 => true
+          case _ => false
+        })
+        eval(s, edge1.condition, pvef(edge1.condition), v)((s1, t0, v1) =>
+          execJoiner.join(s1, v1)((s2, v2, QB) =>
+            brancher.branch(s2, t0, v2)(
+              (s3, v3) => follow(s3, edge1, v3)(QB),
+              (s3, v3) => follow(s3, edge2, v3)(QB))
+            //,
+            //follow(s, edge, v)
+          )((entries, verifier) => {
+            val s2 = entries match {
+              case Seq(entry) => // One branch is dead
+                entry.s
+              case Seq(entry1, entry2) => // Both branches are alive
+                // IMPORTANT: verifier is modified by pathConditionAwareMerge!
+                entry1.pathConditionAwareMerge(entry2)(verifier)
+              case _ =>
+                sys.error(s"Unexpected join data entries: $entries")}
+            s2
+          })(Q))
+      case edges =>
+        edges.foldLeft(Success(): VerificationResult) {
+          case (fatalResult: FatalResult, _) => fatalResult
+          case (_, edge) => follow(s, edge, v)(Q)
+        }
+    }
   }
 
   def exec(s: State, graph: SilverCfg, v: Verifier)
