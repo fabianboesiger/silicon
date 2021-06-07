@@ -361,81 +361,6 @@ object State {
               }))
             */
 
-            /*
-            // Merge the stores.
-            for ((k, v2) <- g2.values) {
-              g3.values.get(k) match {
-                // If the chunks are the same, we don't need to do anything.
-                case Some(v1) if v1 == v2 => {}
-                case Some(v1) => {
-                  // Update store entry k to new symbolic value t
-                  // And constrain t depending on the branch conditions.
-                  val t = Var(Identifier("id"), v1.sort)
-                  joinPcs :+ Implies(conditions1, Equals(t, v1))
-                  joinPcs :+ Implies(conditions2, Equals(t, v2))
-                  g3 = g3 + (k, t)
-                }
-                case None => {
-                  val t = Var(Identifier("id"), v2.sort)
-                  joinPcs :+ Implies(conditions2, Equals(t, v2))
-                  g3 = g3 + (k, t)
-                }
-              }
-            }
-
-
-
-            // Merge the heaps.
-            for (c2 <- h2.values) {
-              h3.values.find(c1 => c1.asInstanceOf[GeneralChunk].id == c2.asInstanceOf[GeneralChunk].id) match {
-                // If the chunks are the same, we don't need to do anything.
-                case Some(c1) if c1 == c2 => {}
-                case Some(c1) => {
-                  // Update heap chunk k to point to new symbolic value t
-                  // And constrain t depending on the branch conditions.
-                  c1 match {
-                    case c1: NonQuantifiedChunk => {
-                      c2 match {
-                        case c2: NonQuantifiedChunk => {
-                          // Join non-quantified chunks.
-                          assert(c1.snap.sort == c2.snap.sort)
-                          val t = Var(Identifier("id"), c1.snap.sort)
-                          val c3 = c1.withSnap(t).withPerm(PermMin(c1.perm, c2.perm))
-                          joinPcs :+ Implies(conditions1, Equals(t, c1.snap))
-                          joinPcs :+ Implies(conditions2, Equals(t, c2.snap))
-                          h3 = h3 + c3
-                        }
-                        case _ => sys.error("Chunks have to be of the same type.")
-                      }
-                    }
-                    case c: QuantifiedChunk => {
-                      c2 match {
-                        case c2: QuantifiedChunk => {
-                          // Join quantified chunks.
-                          sys.error("Join not implemented for quantified chunks.")
-                        }
-                        case _ => sys.error("Chunks have to be of the same type.")
-                      }
-                    }
-                  }
-                }
-                case None => {
-                  c2 match {
-                    case c2: NonQuantifiedChunk => {
-                      val t = Var(Identifier("id"), c2.snap.sort)
-                      val c3 = c2.withSnap(t)
-                      joinPcs :+ Implies(conditions2, Equals(t, c2.snap))
-                      h3 = h3 + c3
-                    }
-                    case c2: QuantifiedChunk => {
-                      sys.error("Join not implemented for quantified chunks.")
-                    }
-                  }
-                }
-              }
-            }
-            */
-
             verifier.decider.prover.comment("Merged states")
             verifier.decider.assume(mergePcs)
 
@@ -452,18 +377,6 @@ object State {
         }
     }
   }
-
-
-  def conditionalizedHeap(h: Heap, pc: RecordedPathConditions): Heap = {
-    val condition = And(pc.branchConditions)
-    Heap(h.values.map(_ match {
-      case c: BasicChunk => c.withSnap(Implies(condition, c.snap))
-      case _ => sys.error("Conditionalizing chunks not yet fully supported.")
-    }))
-  }
-
-  // x.f -> a
-  // x.f -> cond ? a : b
 
   def preserveAfterLocalEvaluation(pre: State, post: State): State = {
     pre.copy(functionRecorder = post.functionRecorder,
