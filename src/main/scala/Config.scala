@@ -459,6 +459,12 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
     noshort = true
   )
 
+  val enableMoreCompleteStateMerging: ScallopOption[Boolean] = opt[Boolean]("enableMoreCompleteStateMerging",
+    descr = "Enable a more complete version of state merging.",
+    default = Some(false),
+    noshort = true
+  )
+
   val disableMostStateConsolidations: ScallopOption[Boolean] = opt[Boolean]("disableMostStateConsolidations",
     descr = "Disable state consolidations, except on-retry and single-merge.",
     default = Some(false),
