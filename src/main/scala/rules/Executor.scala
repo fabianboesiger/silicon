@@ -6,7 +6,6 @@
 
 package viper.silicon.rules
 
-import scala.annotation.unused
 import viper.silver.cfg.silver.SilverCfg
 import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverEdge}
 import viper.silver.verifier.{CounterexampleTransformer, PartialVerificationError}
@@ -26,6 +25,7 @@ import viper.silicon.verifier.Verifier
 import viper.silicon.{ExecuteRecord, Map, MethodCallRecord, SymbExLogger}
 import viper.silicon.rules.execJoiner
 import viper.silver.cfg.ConditionalEdge
+import scala.collection.mutable.Queue
 
 trait ExecutionRules extends SymbolicExecutionRules {
   def exec(s: State,
@@ -48,10 +48,9 @@ object executor extends ExecutionRules {
   import evaluator._
   import producer._
 
-  private def follow(s: State, edge: SilverEdge, v: Verifier)
+  private def follow(s: State, edge: SilverEdge, v: Verifier, until: Option[SilverBlock] = None)
                     (Q: (State, Verifier) => VerificationResult)
                     : VerificationResult = {
-
     val s1 = edge.kind match {
       case cfg.Kind.Out =>
         val (fr1, h1) = stateConsolidator.merge(s.functionRecorder, s.h, s.invariantContexts.head, v)
@@ -63,25 +62,61 @@ object executor extends ExecutionRules {
         s
     }
 
-    edge match {
-      case ce: cfg.ConditionalEdge[ast.Stmt, ast.Exp] =>
-        eval(s1, ce.condition, IfFailed(ce.condition), v)((s2, tCond, v1) =>
-          /* Using branch(...) here ensures that the edge condition is recorded
-           * as a branch condition on the pathcondition stack.
-           */
-          brancher.branch(s2, tCond, v1)(
-            (s3, v3) => exec(s3, ce.target, ce.kind, v3)(Q),
-            (_, _)  => Success()))
+    until match {
+      // Stop following edges if we have reached the join point.
+      case Some(stop) if stop == edge.target =>
+        println("join point reached, stop following edges")
+        Q(s1, v)
+      // Else continue following edges as normal.
+      case _ =>
+        edge match {
+          case ce: cfg.ConditionalEdge[ast.Stmt, ast.Exp] =>
+            eval(s1, ce.condition, IfFailed(ce.condition), v)((s2, tCond, v1) =>
+              /* Using branch(...) here ensures that the edge condition is recorded
+               * as a branch condition on the pathcondition stack.
+               */
+              brancher.branch(s2, tCond, v1)(
+                (s3, v3) => exec(s3, ce.target, ce.kind, v3, until)(Q),
+                (_, _)  => Success()))
 
-      case ue: cfg.UnconditionalEdge[ast.Stmt, ast.Exp] =>
-        exec(s1, ue.target, ue.kind, v)(Q)
+          case ue: cfg.UnconditionalEdge[ast.Stmt, ast.Exp] =>
+            exec(s1, ue.target, ue.kind, v, until)(Q)
+        }
     }
+
+
+  }
+
+  def breadthFirstTraverse[N](start: N, next: N => Iterable[N], end: N): Iterable[N] = {
+    val queue = Queue(start)
+    var output: Vector[N] = Vector.empty
+    while (!queue.isEmpty && queue.front != end) {
+      val n = next(queue.dequeue())
+      queue.enqueueAll(n)
+      output :++= n
+    }
+    output
+  }
+
+  // TODO: Is there a better algorithm?
+  private def findJoinPoint(s: State, edge1: SilverEdge, edge2: SilverEdge): SilverBlock = {
+    assert(edge1.source == edge2.source)
+    val start = edge1.source
+    val list1 = breadthFirstTraverse(edge1.target, s.methodCfg.successors, start)
+    val list2 = breadthFirstTraverse(edge2.target, s.methodCfg.successors, start)
+    for (b1 <- list1) {
+      for (b2 <- list2) {
+        if (b1 == b2) return b1
+      }
+    }
+    sys.error("No join point found")
   }
 
   private def follows(s: State,
                       edges: Seq[SilverEdge],
                       pvef: ast.Exp => PartialVerificationError,
-                      v: Verifier)
+                      v: Verifier,
+                      until: Option[SilverBlock] = None)
                      (Q: (State, Verifier) => VerificationResult)
                      : VerificationResult = {
 
@@ -98,23 +133,31 @@ object executor extends ExecutionRules {
 
     edges match {
       case Seq() => Q(s, v)
-      case Seq(edge) => follow(s, edge, v)(Q)
+      case Seq(edge) => follow(s, edge, v, until)(Q)
       case edges: Seq[ConditionalEdge[ast.Stmt, ast.Exp]] if edges.length == 2 =>
+        println("begin branching")
+
         val edge1 = edges.head
         val edge2 = edges.last
+
+        val joinPoint = findJoinPoint(s, edge1, edge2)
+        println(s"found join point $joinPoint")
+
         // IMPORTANT: Here we assume that edge1.condition is the negation of edge2.condition.
+        println(s"edge1.condition = ${edge1.condition}, edge2.condition = ${edge2.condition}")
+        println(s"edge1.source = ${edge1.source} edge2.source = ${edge2.source}")
+        println(s"edge1.target = ${edge1.target} edge2.target = ${edge2.target}")
         assert((edge1.condition, edge2.condition) match {
-          case (exp1, Not(exp2)) if exp1 == exp2 => true
-          case (Not(exp1), exp2) if exp1 == exp2 => true
+          case (exp1, ast.Not(exp2)) if exp1 == exp2 => true
+          case (ast.Not(exp1), exp2) if exp1 == exp2 => true
           case _ => false
         })
         eval(s, edge1.condition, pvef(edge1.condition), v)((s1, t0, v1) =>
           execJoiner.join(s1, v1)((s2, v2, QB) =>
             brancher.branch(s2, t0, v2)(
-              (s3, v3) => follow(s3, edge1, v3)(QB),
-              (s3, v3) => follow(s3, edge2, v3)(QB))
-            //,
-            //follow(s, edge, v)
+              // Follow until join point.
+              (s3, v3) => follow(s3, edge1, v3, Some(joinPoint))(QB),
+              (s3, v3) => follow(s3, edge2, v3, Some(joinPoint))(QB))
           )((entries, verifier) => {
             val s2 = entries match {
               case Seq(entry) => // One branch is dead
@@ -125,11 +168,18 @@ object executor extends ExecutionRules {
               case _ =>
                 sys.error(s"Unexpected join data entries: $entries")}
             s2
-          })(Q))
+          })((s4, v4) => {
+            // Continue after join point.
+            println(s"continue executing join point")
+            val Seq(incomingEdge1, incomingEdge2) = s4.methodCfg.inEdges(joinPoint)
+            assert(incomingEdge1.kind == incomingEdge2.kind)
+            exec(s4, joinPoint, incomingEdge1.kind, v4, until)(Q)
+          })
+        )
       case edges =>
         edges.foldLeft(Success(): VerificationResult) {
           case (fatalResult: FatalResult, _) => fatalResult
-          case (_, edge) => follow(s, edge, v)(Q)
+          case (_, edge) => follow(s, edge, v, until)(Q)
         }
     }
   }
@@ -141,14 +191,14 @@ object executor extends ExecutionRules {
     exec(s, graph.entry, cfg.Kind.Normal, v)(Q)
   }
 
-  def exec(s: State, block: SilverBlock, incomingEdgeKind: cfg.Kind.Value, v: Verifier)
+  def exec(s: State, block: SilverBlock, incomingEdgeKind: cfg.Kind.Value, v: Verifier, until: Option[SilverBlock] = None)
           (Q: (State, Verifier) => VerificationResult)
           : VerificationResult = {
 
     block match {
       case cfg.StatementBlock(stmt) =>
         execs(s, stmt, v)((s1, v1) =>
-          follows(s1, magicWandSupporter.getOutEdges(s1, block), IfFailed, v1)(Q))
+          follows(s1, magicWandSupporter.getOutEdges(s1, block), IfFailed, v1, until)(Q))
 
       case   _: cfg.PreconditionBlock[ast.Stmt, ast.Exp]
            | _: cfg.PostconditionBlock[ast.Stmt, ast.Exp] =>
@@ -220,7 +270,7 @@ object executor extends ExecutionRules {
                         else {
                           execs(s3, stmts, v2)((s4, v3) => {
                             v3.decider.prover.comment("Loop head block: Follow loop-internal edges")
-                            follows(s4, sortedEdges, WhileFailed, v3)(Q)})}})}})}))
+                            follows(s4, sortedEdges, WhileFailed, v3, until)(Q)})}})}})}))
 
           case _ =>
             /* We've reached a loop head block via an edge other than an in-edge: a normal edge or

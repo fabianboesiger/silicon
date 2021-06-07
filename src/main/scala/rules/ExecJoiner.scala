@@ -27,7 +27,6 @@ object execJoiner {
                  (merge: (Seq[ExecJoinDataEntry], Verifier) => State)
                  (Q: (State, Verifier) => VerificationResult)
   : VerificationResult = {
-    println(s"Joining: ${Thread.currentThread().getStackTrace().map(e => e.getFileName() + " " + e.getLineNumber()).lift(2)}")
 
     var entries: Seq[ExecJoinDataEntry] = Vector.empty
 
@@ -36,16 +35,7 @@ object execJoiner {
       val s2 = s1.copy(underJoin = true)
 
       block(s2, v1, (s3, v2) => {
-        /* In order to prevent mismatches between different final states of the evaluation
-         * paths that are to be joined, we reset certain state properties that may have been
-         * affected by the evaluation - such as the store (by let-bindings) or the heap (by
-         * state consolidations) to their initial values.
-         */
-        val s4 = s3.copy(g = s1.g,
-          h = s1.h,
-          oldHeaps = s1.oldHeaps,
-          underJoin = s1.underJoin)
-        entries :+= ExecJoinDataEntry(s4, v2.decider.pcs.after(preMark))
+        entries :+= ExecJoinDataEntry(s3, v2.decider.pcs.after(preMark))
         Success()
       })
     }) && {

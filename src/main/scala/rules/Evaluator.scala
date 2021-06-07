@@ -306,7 +306,6 @@ object evaluator extends EvaluationRules {
           evalImplies(s1, t0, e1, implies.info == FromShortCircuitingAnd, pve, v1)(Q))
 
       case ast.CondExp(e0, e1, e2) =>
-        println("CondExp")
         eval(s, e0, pve, v)((s1, t0, v1) =>
           joiner.join[Term, Term](s1, v1)((s2, v2, QB) =>
             brancher.branch(s2, t0, v2)(
