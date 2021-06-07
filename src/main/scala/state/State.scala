@@ -309,7 +309,6 @@ object State {
                   val v1 = entry1._2
                   val v2 = entry2._2
                   val t = verifier.decider.fresh(v1.sort)
-                  println(s"")
                   println(s"new entry: $k = $t")
                   mergePcs :+= Implies(cond1, Equals(t, v1))
                   mergePcs :+= Implies(cond2, Equals(t, v2))
@@ -317,14 +316,14 @@ object State {
                 }
               }))
 
-            /*
+
             val h3 = Heap(mergeUsing(h1.values, conditions1, h2.values, conditions2)
               (_.asInstanceOf[GeneralChunk].id)
               ((chunk, cond) => {
                 chunk match {
                   case c: NonQuantifiedChunk => {
                     val t = verifier.decider.fresh(c.snap.sort)
-                    mergePcs :+ Implies(cond, Equals(t, c.snap))
+                    mergePcs :+= Implies(cond, Equals(t, c.snap))
                     c.withSnap(t)
                   }
                   case c2: QuantifiedChunk => {
@@ -333,33 +332,41 @@ object State {
                 }
               })
               ((chunk1, cond1, chunk2, cond2) => {
-                chunk1 match {
-                  case c1: NonQuantifiedChunk => {
-                    chunk2 match {
-                      case c2: NonQuantifiedChunk => {
-                        // Join non-quantified chunks.
-                        assert(c1.snap.sort == c2.snap.sort)
-                        val t = verifier.decider.fresh(c1.snap.sort)
-                        val c3 = c1.withSnap(t).withPerm(PermMin(c1.perm, c2.perm))
-                        mergePcs :+ Implies(cond1, Equals(t, c1.snap))
-                        mergePcs :+ Implies(cond2, Equals(t, c2.snap))
-                        c3
+                if (chunk1 == chunk2) {
+                  println(s"merging heap, same entries: chunk1 = ${chunk1}, cond1 = ${cond1}, chunk2 = ${chunk2}, cond2 = ${cond2}")
+                  chunk1
+                } else {
+                  println(s"merging heap: chunk1 = ${chunk1}, cond1 = ${cond1}, chunk2 = ${chunk2}, cond2 = ${cond2}")
+                  chunk1 match {
+                    case c1: NonQuantifiedChunk => {
+                      chunk2 match {
+                        case c2: NonQuantifiedChunk => {
+                          // Join non-quantified chunks.
+                          assert(c1.snap.sort == c2.snap.sort)
+                          val t = verifier.decider.fresh(c1.snap.sort)
+                          val c3 = c1.withSnap(t).withPerm(PermMin(c1.perm, c2.perm))
+                          println(s"new chunk: $c3")
+                          mergePcs :+= Implies(cond1, Equals(t, c1.snap))
+                          mergePcs :+= Implies(cond2, Equals(t, c2.snap))
+                          c3
+                        }
+                        case _ => sys.error("Chunks have to be of the same type.")
                       }
-                      case _ => sys.error("Chunks have to be of the same type.")
                     }
-                  }
-                  case c1: QuantifiedChunk => {
-                    chunk2 match {
-                      case c2: QuantifiedChunk => {
-                        // Join quantified chunks.
-                        sys.error("Join not implemented for quantified chunks.")
+                    case c1: QuantifiedChunk => {
+                      chunk2 match {
+                        case c2: QuantifiedChunk => {
+                          // Join quantified chunks.
+                          sys.error("Join not implemented for quantified chunks.")
+                        }
+                        case _ => sys.error("Chunks have to be of the same type.")
                       }
-                      case _ => sys.error("Chunks have to be of the same type.")
                     }
                   }
                 }
               }))
-            */
+
+            println(s"merge pcs: $mergePcs")
 
             verifier.decider.prover.comment("Merged states")
             verifier.decider.assume(mergePcs)
@@ -371,7 +378,8 @@ object State {
               ssCache = ssCache3,
               smCache = smCache3,
               pmCache = pmCache3,
-              g = g3)
+              g = g3,
+              h = h3)
           case _ =>
             sys.error("State merging failed: unexpected mismatch between symbolic states")
         }
