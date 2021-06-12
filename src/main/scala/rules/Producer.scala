@@ -206,7 +206,7 @@ object producer extends ProductionRules {
       continuation(if (state.exhaleExt) state.copy(reserveHeaps = state.h +: state.reserveHeaps.drop(1)) else state, verifier)
 
     val produced = a match {
-      case imp @ ast.Implies(e0, a0) if !a.isPure && Verifier.config.enableMoreCompleteStateMerging() =>
+      case imp @ ast.Implies(e0, a0) if !a.isPure && Verifier.config.moreJoins() =>
         val impLog = new GlobalBranchRecord(imp, s, v.decider.pcs, "produce")
         val sepIdentifier = SymbExLogger.currentLog().insert(impLog)
         SymbExLogger.currentLog().initializeBranching()
@@ -270,7 +270,7 @@ object producer extends ProductionRules {
           SymbExLogger.currentLog().collapse(null, sepIdentifier)
           branch_res})
 
-      case ite @ ast.CondExp(e0, a1, a2) if !a.isPure && Verifier.config.enableMoreCompleteStateMerging() =>
+      case ite @ ast.CondExp(e0, a1, a2) if !a.isPure && Verifier.config.moreJoins() =>
         val gbLog = new GlobalBranchRecord(ite, s, v.decider.pcs, "produce")
         val sepIdentifier = SymbExLogger.currentLog().insert(gbLog)
         SymbExLogger.currentLog().initializeBranching()

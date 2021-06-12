@@ -120,7 +120,7 @@ object executor extends ExecutionRules {
                      (Q: (State, Verifier) => VerificationResult)
                      : VerificationResult = {
 
-    if (Verifier.config.enableMoreCompleteStateMerging()) {
+    if (Verifier.config.moreJoins()) {
 
       edges match {
         case Seq() => Q(s, v)
