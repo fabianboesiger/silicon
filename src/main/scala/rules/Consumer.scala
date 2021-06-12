@@ -187,6 +187,43 @@ object consumer extends ConsumptionRules {
       v.logger.debug("hR = " + s.reserveHeaps.map(v.stateFormatter.format).mkString("", ",\n     ", ""))
 
     val consumed = a match {
+      case imp @ ast.Implies(e0, a0) if !a.isPure && Verifier.config.moreJoins() =>
+        val impLog = new GlobalBranchRecord(imp, s, v.decider.pcs, "consume")
+        val sepIdentifier = SymbExLogger.currentLog().insert(impLog)
+        SymbExLogger.currentLog().initializeBranching()
+
+        evaluator.eval(s, e0, pve, v)((s1, t0, v1) => {
+          genericJoiner.join[(Heap, Term), (Heap, Term)](s1, v1)((s1, v1, QB) => {
+            impLog.finish_cond()
+            val branch_res =
+              branch(s1, t0, v1)(
+                (s2, v2) => consumeR(s2, h, a0, pve, v2)((s3, h3, snap3, v3) => {
+                  val res1 = QB(s3, (h3, snap3), v3)
+                  impLog.finish_thnSubs()
+                  SymbExLogger.currentLog().prepareOtherBranch(impLog)
+                  res1}),
+                (s2, v2) => {
+                  val res2 = QB(s2, (h, Unit), v2)
+                  impLog.finish_elsSubs()
+                  res2})
+            SymbExLogger.currentLog().collapse(null, sepIdentifier)
+            branch_res
+          })((entries, verifier) => {
+            val s2 = entries match {
+              case Seq(entry) => // One branch is dead
+                (entry.s, entry.data)
+              case Seq(entry1, entry2) => // Both branches are alive
+                // IMPORTANT: verifier is modified by pathConditionAwareMerge!
+                // TODO: Join entry data
+                (entry1.pathConditionAwareMerge(entry2)(verifier), entry1.data)
+              case _ =>
+                sys.error(s"Unexpected join data entries: $entries")}
+            s2
+          })((s4, data, v4) => {
+            Q(s4, data._1, data._2, v4)
+          })
+        })
+
       case imp @ ast.Implies(e0, a0) if !a.isPure =>
         val impLog = new GlobalBranchRecord(imp, s, v.decider.pcs, "consume")
         val sepIdentifier = SymbExLogger.currentLog().insert(impLog)
@@ -208,30 +245,41 @@ object consumer extends ConsumptionRules {
           SymbExLogger.currentLog().collapse(null, sepIdentifier)
           branch_res})
 
-      /*
-      case ite @ ast.CondExp(e0, a1, a2) if !a.isPure && Verifier.config.enableMoreCompleteStateMerging() =>
+      case ite @ ast.CondExp(e0, a1, a2) if !a.isPure && Verifier.config.moreJoins() =>
         val gbLog = new GlobalBranchRecord(ite, s, v.decider.pcs, "consume")
         val sepIdentifier = SymbExLogger.currentLog().insert(gbLog)
         SymbExLogger.currentLog().initializeBranching()
         eval(s, e0, pve, v)((s1, t0, v1) => {
-          execJoiner.join(s1, v1)((s1, v1, QB) => {
+          genericJoiner.join[(Heap, Term), (Heap, Term)](s1, v1)((s1, v1, QB) => {
             gbLog.finish_cond()
             val branch_res =
               branch(s1, t0, v1)(
                 (s2, v2) => consumeR(s2, h, a1, pve, v2)((s3, h3, snap3, v3) => {
-                  val res1 = Q(s3, h3, snap3, v3)
+                  val res1 = QB(s3, (h3, snap3), v3)
                   gbLog.finish_thnSubs()
                   SymbExLogger.currentLog().prepareOtherBranch(gbLog)
                   res1}),
                 (s2, v2) => consumeR(s2, h, a2, pve, v2)((s3, h3, snap3, v3) => {
-                  val res2 = Q(s3, h3, snap3, v3)
+                  val res2 = QB(s3, (h3, snap3), v3)
                   gbLog.finish_elsSubs()
                   res2}))
             SymbExLogger.currentLog().collapse(null, sepIdentifier)
             branch_res
+          })((entries, verifier) => {
+            val s2 = entries match {
+              case Seq(entry) => // One branch is dead
+                (entry.s, entry.data)
+              case Seq(entry1, entry2) => // Both branches are alive
+                // IMPORTANT: verifier is modified by pathConditionAwareMerge!
+                // TODO: Join entry data
+                (entry1.pathConditionAwareMerge(entry2)(verifier), entry1.data)
+              case _ =>
+                sys.error(s"Unexpected join data entries: $entries")}
+            s2
+          })((s4, data, v4) => {
+            Q(s4, data._1, data._2, v4)
           })
         })
-        */
 
       case ite @ ast.CondExp(e0, a1, a2) if !a.isPure =>
         val gbLog = new GlobalBranchRecord(ite, s, v.decider.pcs, "consume")
