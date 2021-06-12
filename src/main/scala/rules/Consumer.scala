@@ -17,6 +17,7 @@ import viper.silicon.state.terms._
 import viper.silicon.state.terms.predef.`?r`
 import viper.silicon.verifier.Verifier
 import viper.silicon.{ConsumeRecord, GlobalBranchRecord, SymbExLogger}
+import viper.silicon.rules.execJoiner
 
 trait ConsumptionRules extends SymbolicExecutionRules {
 
@@ -207,6 +208,31 @@ object consumer extends ConsumptionRules {
           SymbExLogger.currentLog().collapse(null, sepIdentifier)
           branch_res})
 
+      /*
+      case ite @ ast.CondExp(e0, a1, a2) if !a.isPure && Verifier.config.enableMoreCompleteStateMerging() =>
+        val gbLog = new GlobalBranchRecord(ite, s, v.decider.pcs, "consume")
+        val sepIdentifier = SymbExLogger.currentLog().insert(gbLog)
+        SymbExLogger.currentLog().initializeBranching()
+        eval(s, e0, pve, v)((s1, t0, v1) => {
+          execJoiner.join(s1, v1)((s1, v1, QB) => {
+            gbLog.finish_cond()
+            val branch_res =
+              branch(s1, t0, v1)(
+                (s2, v2) => consumeR(s2, h, a1, pve, v2)((s3, h3, snap3, v3) => {
+                  val res1 = Q(s3, h3, snap3, v3)
+                  gbLog.finish_thnSubs()
+                  SymbExLogger.currentLog().prepareOtherBranch(gbLog)
+                  res1}),
+                (s2, v2) => consumeR(s2, h, a2, pve, v2)((s3, h3, snap3, v3) => {
+                  val res2 = Q(s3, h3, snap3, v3)
+                  gbLog.finish_elsSubs()
+                  res2}))
+            SymbExLogger.currentLog().collapse(null, sepIdentifier)
+            branch_res
+          })
+        })
+        */
+
       case ite @ ast.CondExp(e0, a1, a2) if !a.isPure =>
         val gbLog = new GlobalBranchRecord(ite, s, v.decider.pcs, "consume")
         val sepIdentifier = SymbExLogger.currentLog().insert(gbLog)
@@ -226,6 +252,7 @@ object consumer extends ConsumptionRules {
                 res2}))
           SymbExLogger.currentLog().collapse(null, sepIdentifier)
           branch_res})
+
 
       /* TODO: Initial handling of QPs is identical/very similar in consumer
        *       and producer. Try to unify the code.

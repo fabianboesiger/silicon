@@ -18,6 +18,8 @@ import viper.silicon.state._
 import viper.silicon.supporters.functions.NoopFunctionRecorder
 import viper.silicon.verifier.Verifier
 import viper.silicon.{GlobalBranchRecord, ProduceRecord, SymbExLogger}
+import viper.silicon.rules.joiner
+import viper.silicon.rules.execJoiner
 
 trait ProductionRules extends SymbolicExecutionRules {
 
@@ -204,6 +206,44 @@ object producer extends ProductionRules {
       continuation(if (state.exhaleExt) state.copy(reserveHeaps = state.h +: state.reserveHeaps.drop(1)) else state, verifier)
 
     val produced = a match {
+      case imp @ ast.Implies(e0, a0) if !a.isPure && Verifier.config.enableMoreCompleteStateMerging() =>
+        val impLog = new GlobalBranchRecord(imp, s, v.decider.pcs, "produce")
+        val sepIdentifier = SymbExLogger.currentLog().insert(impLog)
+        SymbExLogger.currentLog().initializeBranching()
+
+        eval(s, e0, pve, v)((s1, t0, v1) => {
+          execJoiner.join(s1, v1)((s1, v1, QB) => {
+            impLog.finish_cond()
+            val branch_res =
+              branch(s1, t0, v1)(
+                (s2, v2) => produceR(s2, sf, a0, pve, v2)((s3, v3) => {
+                  val res1 = QB(s3, v3)
+                  impLog.finish_thnSubs()
+                  SymbExLogger.currentLog().prepareOtherBranch(impLog)
+                  res1}),
+                (s2, v2) => {
+                  v2.decider.assume(sf(sorts.Snap, v2) === Unit)
+                  /* TODO: Avoid creating a fresh var (by invoking) `sf` that is not used
+                   * otherwise. In order words, only make this assumption if `sf` has
+                   * already been used, e.g. in a snapshot equality such as `s0 == (s1, s2)`.
+                   */
+                  val res2 = QB(s2, v2)
+                  impLog.finish_elsSubs()
+                  res2})
+            SymbExLogger.currentLog().collapse(null, sepIdentifier)
+            branch_res
+          })((entries, verifier) => {
+            val s2 = entries match {
+              case Seq(entry) => // One branch is dead
+                entry.s
+              case Seq(entry1, entry2) => // Both branches are alive
+                entry1.pathConditionAwareMerge(entry2)(verifier)
+              case _ =>
+                sys.error(s"Unexpected join data entries: $entries")}
+            s2
+          })(Q)
+        })
+
       case imp @ ast.Implies(e0, a0) if !a.isPure =>
         val impLog = new GlobalBranchRecord(imp, s, v.decider.pcs, "produce")
         val sepIdentifier = SymbExLogger.currentLog().insert(impLog)
@@ -220,15 +260,48 @@ object producer extends ProductionRules {
                 res1}),
               (s2, v2) => {
                 v2.decider.assume(sf(sorts.Snap, v2) === Unit)
-                  /* TODO: Avoid creating a fresh var (by invoking) `sf` that is not used
-                   * otherwise. In order words, only make this assumption if `sf` has
-                   * already been used, e.g. in a snapshot equality such as `s0 == (s1, s2)`.
-                   */
+                /* TODO: Avoid creating a fresh var (by invoking) `sf` that is not used
+                 * otherwise. In order words, only make this assumption if `sf` has
+                 * already been used, e.g. in a snapshot equality such as `s0 == (s1, s2)`.
+                 */
                 val res2 = Q(s2, v2)
                 impLog.finish_elsSubs()
                 res2})
           SymbExLogger.currentLog().collapse(null, sepIdentifier)
           branch_res})
+
+      case ite @ ast.CondExp(e0, a1, a2) if !a.isPure && Verifier.config.enableMoreCompleteStateMerging() =>
+        val gbLog = new GlobalBranchRecord(ite, s, v.decider.pcs, "produce")
+        val sepIdentifier = SymbExLogger.currentLog().insert(gbLog)
+        SymbExLogger.currentLog().initializeBranching()
+        eval(s, e0, pve, v)((s1, t0, v1) => {
+          // TODO: Rename s1, v1, ..., s3, v3
+          execJoiner.join(s1, v1)((s1, v1, QB) => {
+            gbLog.finish_cond()
+            val branch_res =
+              branch(s1, t0, v1)(
+                (s2, v2) => produceR(s2, sf, a1, pve, v2)((s3, v3) => {
+                  val res1 = QB(s3, v3)
+                  gbLog.finish_thnSubs()
+                  SymbExLogger.currentLog().prepareOtherBranch(gbLog)
+                  res1}),
+                (s2, v2) => produceR(s2, sf, a2, pve, v2)((s3, v3) => {
+                  val res2 = QB(s3, v3)
+                  gbLog.finish_elsSubs()
+                  res2}))
+            SymbExLogger.currentLog().collapse(null, sepIdentifier)
+            branch_res
+          })((entries, verifier) => {
+            val s2 = entries match {
+              case Seq(entry) => // One branch is dead
+                entry.s
+              case Seq(entry1, entry2) => // Both branches are alive
+                entry1.pathConditionAwareMerge(entry2)(verifier)
+              case _ =>
+                sys.error(s"Unexpected join data entries: $entries")}
+            s2
+          })(Q)
+        })
 
       case ite @ ast.CondExp(e0, a1, a2) if !a.isPure =>
         val gbLog = new GlobalBranchRecord(ite, s, v.decider.pcs, "produce")
