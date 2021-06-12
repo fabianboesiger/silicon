@@ -12,14 +12,16 @@ import viper.silicon.common.Mergeable
 import viper.silicon.common.collections.immutable.InsertionOrderedSet
 import viper.silicon.decider.RecordedPathConditions
 import viper.silicon.interfaces.state.{GeneralChunk, NonQuantifiedChunk, QuantifiedChunk}
+import viper.silicon.rules.executor.breadthFirstTraverse
 import viper.silicon.state.State.OldHeaps
-import viper.silicon.state.terms.{And, Equals, Implies, PermMin, Term, Var}
+import viper.silicon.state.terms.{And, Equals, Implies, PermMin, Term, Var, sorts}
 import viper.silicon.supporters.functions.{FunctionRecorder, NoopFunctionRecorder}
 import viper.silicon.{Map, Stack}
 
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{HashMap, Queue}
 import viper.silicon.verifier.Verifier
 import viper.silver.ast.AbstractLocalVar
+import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverEdge}
 
 final case class State(g: Store = Store(),
                        h: Heap = Heap(),
@@ -290,7 +292,7 @@ object State {
             val g3 = Store(mergeUsing(g1.values, conditions1, g2.values, conditions2)
               (_._1)
               ((entry, cond) => {
-
+                // Maybe (k, t) is not needed?
                 val k = entry._1
                 val v = entry._2
                 val t = verifier.decider.fresh(v.sort)
@@ -337,6 +339,7 @@ object State {
                   chunk1
                 } else {
                   println(s"merging heap: chunk1 = ${chunk1}, cond1 = ${cond1}, chunk2 = ${chunk2}, cond2 = ${cond2}")
+                  // TODO: (c1, c2) match { case (c1: FieldChunk, c2: FieldChunk) => ...}
                   chunk1 match {
                     case c1: NonQuantifiedChunk => {
                       chunk2 match {
@@ -344,10 +347,14 @@ object State {
                           // Join non-quantified chunks.
                           assert(c1.snap.sort == c2.snap.sort)
                           val t = verifier.decider.fresh(c1.snap.sort)
-                          val c3 = c1.withSnap(t).withPerm(PermMin(c1.perm, c2.perm))
+                          val p = verifier.decider.fresh(sorts.Perm)
+                          // TODO: More precise permissions
+                          val c3 = c1.withSnap(t).withPerm(p)
                           println(s"new chunk: $c3")
                           mergePcs :+= Implies(cond1, Equals(t, c1.snap))
                           mergePcs :+= Implies(cond2, Equals(t, c2.snap))
+                          mergePcs :+= Implies(cond1, Equals(p, c1.perm))
+                          mergePcs :+= Implies(cond2, Equals(p, c2.perm))
                           c3
                         }
                         case _ => sys.error("Chunks have to be of the same type.")
@@ -358,6 +365,12 @@ object State {
                         case c2: QuantifiedChunk => {
                           // Join quantified chunks.
                           sys.error("Join not implemented for quantified chunks.")
+                          /*
+                          assert(c1.snap.sort == c2.snap.sort)
+                          if (c1.quantifiedVars == c2.quantifiedVars) {
+
+                          }
+                          */
                         }
                         case _ => sys.error("Chunks have to be of the same type.")
                       }

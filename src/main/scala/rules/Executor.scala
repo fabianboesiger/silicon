@@ -83,27 +83,27 @@ object executor extends ExecutionRules {
             exec(s1, ue.target, ue.kind, v, until)(Q)
         }
     }
-
-
   }
 
   def breadthFirstTraverse[N](start: N, next: N => Iterable[N], end: N): Iterable[N] = {
     val queue = Queue(start)
     var output: Vector[N] = Vector.empty
     while (!queue.isEmpty && queue.front != end) {
-      val n = next(queue.dequeue())
+      val f = queue.dequeue()
+      output :+= f
+      val n = next(f)
       queue.enqueueAll(n)
-      output :++= n
     }
     output
   }
 
   // TODO: Is there a better algorithm?
-  private def findJoinPoint(s: State, edge1: SilverEdge, edge2: SilverEdge): SilverBlock = {
+  private def nextJoinPoint(s: State, edge1: SilverEdge, edge2: SilverEdge): SilverBlock = {
     assert(edge1.source == edge2.source)
+    val isJoinPoint = (b: SilverBlock) => s.methodCfg.inEdges(b).length > 1
     val start = edge1.source
-    val list1 = breadthFirstTraverse(edge1.target, s.methodCfg.successors, start)
-    val list2 = breadthFirstTraverse(edge2.target, s.methodCfg.successors, start)
+    val list1 = breadthFirstTraverse(edge1.target, s.methodCfg.successors, start).filter(isJoinPoint)
+    val list2 = breadthFirstTraverse(edge2.target, s.methodCfg.successors, start).filter(isJoinPoint)
     for (b1 <- list1) {
       for (b2 <- list2) {
         if (b1 == b2) return b1
@@ -125,13 +125,17 @@ object executor extends ExecutionRules {
       edges match {
         case Seq() => Q(s, v)
         case Seq(edge) => follow(s, edge, v, until)(Q)
-        case edges: Seq[ConditionalEdge[ast.Stmt, ast.Exp]] if edges.length == 2 =>
+        case edges if
+          edges.length == 2 &&
+          edges.head.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
+          edges.last.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] =>
+
           println("begin branching")
 
-          val edge1 = edges.head
-          val edge2 = edges.last
+          val edge1 = edges.head.asInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]]
+          val edge2 = edges.last.asInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]]
 
-          val joinPoint = findJoinPoint(s, edge1, edge2)
+          val joinPoint = nextJoinPoint(s, edge1, edge2)
           println(s"found join point $joinPoint")
 
           // IMPORTANT: Here we assume that edge1.condition is the negation of edge2.condition.
@@ -139,8 +143,8 @@ object executor extends ExecutionRules {
           println(s"edge1.source = ${edge1.source} edge2.source = ${edge2.source}")
           println(s"edge1.target = ${edge1.target} edge2.target = ${edge2.target}")
           assert((edge1.condition, edge2.condition) match {
-            case (exp1, ast.Not(exp2)) if exp1 == exp2 => true
-            case (ast.Not(exp1), exp2) if exp1 == exp2 => true
+            case (exp1, ast.Not(exp2)) => exp1 == exp2
+            case (ast.Not(exp1), exp2) => exp1 == exp2
             case _ => false
           })
           eval(s, edge1.condition, pvef(edge1.condition), v)((s1, t0, v1) =>
