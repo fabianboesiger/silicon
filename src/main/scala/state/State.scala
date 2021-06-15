@@ -264,7 +264,7 @@ object State {
           `conservingSnapshotGeneration1`,
           `recordPossibleTriggers1`, possibleTriggers2,
           triggerExp2,
-          `partiallyConsumedHeap1`,
+          partiallyConsumedHeap2,
           `permissionScalingFactor1`,
           `reserveHeaps1`, `reserveCfgs1`, `conservedPcs1`, `recordPcs1`, `exhaleExt1`,
           `applyHeuristics1`, `heuristicsDepth1`, `triggerAction1`,
@@ -286,7 +286,8 @@ object State {
             val conditions2 = And(pc2.branchConditions)
             var mergePcs: Vector[Term] = Vector.empty
 
-            val g3 = Store(mergeUsing(g1.values, conditions1, g2.values, conditions2)
+            val mergeStore = (g1: Store, g2: Store) => {
+              Store(mergeUsing(g1.values, conditions1, g2.values, conditions2)
               (_._1)
               ((entry, cond) => {
                 // Maybe (k, t) is not needed?
@@ -314,12 +315,14 @@ object State {
                   (k, t)
                 }
               }))
+            }
 
             trait ChunkKey
             case class QuantifiedChunkKey() extends ChunkKey // TODO
             case class NonQuantifiedChunkKey(args: Seq[Term], id: ChunkIdentifer) extends ChunkKey
 
-            val h3 = Heap(mergeUsing(h1.values, conditions1, h2.values, conditions2)
+            val mergeHeap = (h1: Heap, h2: Heap) => {
+              Heap(mergeUsing(h1.values, conditions1, h2.values, conditions2)
               (_ match {
                 case c: NonQuantifiedChunk => NonQuantifiedChunkKey(c.args, c.id)
                 case c: QuantifiedChunk => QuantifiedChunkKey() // TODO
@@ -356,10 +359,8 @@ object State {
                           // TODO: More precise permissions
                           val c3 = c1.withSnap(t).withPerm(p)
                           println(s"new chunk: $c3")
-                          mergePcs :+= Implies(cond1, Equals(t, c1.snap))
-                          mergePcs :+= Implies(cond2, Equals(t, c2.snap))
-                          mergePcs :+= Implies(cond1, Equals(p, c1.perm))
-                          mergePcs :+= Implies(cond2, Equals(p, c2.perm))
+                          mergePcs :+= Implies(cond1, And(Equals(t, c1.snap), Equals(p, c1.perm)))
+                          mergePcs :+= Implies(cond2, And(Equals(t, c2.snap), Equals(p, c2.perm)))
                           c3
                         }
                         case _ => sys.error("Chunks have to be of the same type.")
@@ -383,6 +384,14 @@ object State {
                   }
                 }
               }))
+            }
+
+            val g3 = mergeStore(g1, g2)
+            val h3 = mergeHeap(h1, h2)
+            val partiallyConsumedHeap3 = mergeHeap(
+              partiallyConsumedHeap1.getOrElse(Heap()),
+              partiallyConsumedHeap2.getOrElse(Heap())
+            )
 
             println(s"merge pcs: $mergePcs")
 
@@ -393,13 +402,23 @@ object State {
               possibleTriggers = possibleTriggers3,
               triggerExp = triggerExp3,
               constrainableARPs = constrainableARPs3,
-              ssCache = ssCache3,
-              smCache = smCache3,
-              pmCache = pmCache3,
+              // TODO: Merge caches.
+              ssCache = Map.empty,
+              smCache = SnapshotMapCache.empty,
+              pmCache = Map.empty,
               g = g3,
-              h = h3)
+              h = h3,
+              partiallyConsumedHeap = Some(partiallyConsumedHeap3))
           case _ =>
-            sys.error("State merging failed: unexpected mismatch between symbolic states")
+            val err = new StringBuilder()
+            for (ix <- 0 until s1.productArity) yield {
+              val e1 = s1.productElement(ix)
+              val e2 = s2.productElement(ix)
+              if (e1 != e2) {
+                err ++= s"\n\tField index ${s1.productElementName(ix)} not equal"
+              }
+            }
+            sys.error(s"State merging failed: unexpected mismatch between symbolic states: $err")
         }
     }
   }
