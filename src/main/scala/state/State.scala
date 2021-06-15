@@ -11,17 +11,14 @@ import viper.silver.cfg.silver.SilverCfg
 import viper.silicon.common.Mergeable
 import viper.silicon.common.collections.immutable.InsertionOrderedSet
 import viper.silicon.decider.RecordedPathConditions
-import viper.silicon.interfaces.state.{GeneralChunk, NonQuantifiedChunk, QuantifiedChunk}
-import viper.silicon.rules.executor.breadthFirstTraverse
+import viper.silicon.interfaces.state.{NonQuantifiedChunk, QuantifiedChunk, ChunkIdentifer}
 import viper.silicon.state.State.OldHeaps
-import viper.silicon.state.terms.{And, Equals, Implies, PermMin, Term, Var, sorts}
+import viper.silicon.state.terms.{And, Equals, Implies, Term, Var, sorts}
 import viper.silicon.supporters.functions.{FunctionRecorder, NoopFunctionRecorder}
 import viper.silicon.{Map, Stack}
 
-import scala.collection.mutable.{HashMap, Queue}
+import scala.collection.mutable.HashMap
 import viper.silicon.verifier.Verifier
-import viper.silver.ast.AbstractLocalVar
-import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverEdge}
 
 final case class State(g: Store = Store(),
                        h: Heap = Heap(),
@@ -318,15 +315,23 @@ object State {
                 }
               }))
 
+            trait ChunkKey
+            case class QuantifiedChunkKey() extends ChunkKey // TODO
+            case class NonQuantifiedChunkKey(args: Seq[Term], id: ChunkIdentifer) extends ChunkKey
 
             val h3 = Heap(mergeUsing(h1.values, conditions1, h2.values, conditions2)
-              (_.asInstanceOf[GeneralChunk].id)
+              (_ match {
+                case c: NonQuantifiedChunk => NonQuantifiedChunkKey(c.args, c.id)
+                case c: QuantifiedChunk => QuantifiedChunkKey() // TODO
+              })
               ((chunk, cond) => {
                 chunk match {
                   case c: NonQuantifiedChunk => {
                     val t = verifier.decider.fresh(c.snap.sort)
+                    val p = verifier.decider.fresh(sorts.Perm)
                     mergePcs :+= Implies(cond, Equals(t, c.snap))
-                    c.withSnap(t)
+                    mergePcs :+= Implies(cond, Equals(p, c.perm))
+                    c.withSnap(t).withPerm(p)
                   }
                   case c2: QuantifiedChunk => {
                     sys.error("Join not implemented for quantified chunks.")
@@ -344,7 +349,7 @@ object State {
                     case c1: NonQuantifiedChunk => {
                       chunk2 match {
                         case c2: NonQuantifiedChunk => {
-                          // Join non-quantified chunks.
+                          // Join non-quantified chunks
                           assert(c1.snap.sort == c2.snap.sort)
                           val t = verifier.decider.fresh(c1.snap.sort)
                           val p = verifier.decider.fresh(sorts.Perm)

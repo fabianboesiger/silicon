@@ -43,7 +43,7 @@ object genericJoiner {
           h = s1.h,
           oldHeaps = s1.oldHeaps,
           underJoin = s1.underJoin)
-        entries :+= JoinDataEntry(s4, data, v2.decider.pcs.after(preMark))
+        entries :+= GenericJoinDataEntry(s4, data, v2.decider.pcs.after(preMark))
         Success()
       })
     }) && {
