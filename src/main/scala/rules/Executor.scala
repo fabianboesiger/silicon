@@ -109,7 +109,10 @@ object executor extends ExecutionRules {
         if (b1 == b2) return b1
       }
     }
-    sys.error("No join point found")
+    //sys.error(s"No join point found: \nedge1:\n${edge1.target.elements.toString()}: $list1 \nedge2:\n${edge2.target.elements.toString()}: $list2")
+    // Assume this is a loop
+    // TODO: Probably not a correct assumption?
+    start
   }
 
   private def follows(s: State,
@@ -120,7 +123,7 @@ object executor extends ExecutionRules {
                      (Q: (State, Verifier) => VerificationResult)
                      : VerificationResult = {
 
-    if (Verifier.config.moreJoins()) {
+    if (Verifier.config.moreJoins() && false /* TODO: disabled for now */) {
 
       edges match {
         case Seq() => Q(s, v)
@@ -134,6 +137,8 @@ object executor extends ExecutionRules {
 
           val edge1 = edges.head.asInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]]
           val edge2 = edges.last.asInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]]
+
+          //println(s"edge1.cond: ${edge1.condition}, ${edge1.target}, edge2.cond: ${edge2.condition}, ${edge2.target}")
 
           val joinPoint = nextJoinPoint(s, edge1, edge2)
           println(s"found join point $joinPoint")
