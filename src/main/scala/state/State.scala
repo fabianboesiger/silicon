@@ -287,7 +287,7 @@ object State {
 
         /* Decompose state s2: most values must match those of s1 */
         s2 match {
-          case State(g2, h2, `oldHeaps1`,
+          case State(g2, h2, oldHeaps2,
           `parallelizeBranches1`,
           `recordVisited1`, `visited1`,
           `methodCfg1`, `invariantContexts1`,
@@ -436,21 +436,39 @@ object State {
               })
             }
 
-            val mergeHeap = (h1: Heap, h2: Heap) => {
+            val mergeHeap = (h1: Heap, cond1: Term, h2: Heap, cond2: Term) => {
               val (unconditionalHeapChunks, h1HeapChunksToConditionalize) = h1.values.partition(c1 => h2.values.find(_ == c1).nonEmpty)
               val h2HeapChunksToConditionalize = h2.values.filter(c2 => unconditionalHeapChunks.find(_ == c2).isEmpty)
-              val h1ConditionalizedHeapChunks = conditionalizeChunks(h1HeapChunksToConditionalize, conditions1)
-              val h2ConditionalizedHeapChunks = conditionalizeChunks(h2HeapChunksToConditionalize, conditions2)
+              val h1ConditionalizedHeapChunks = conditionalizeChunks(h1HeapChunksToConditionalize, cond1)
+              val h2ConditionalizedHeapChunks = conditionalizeChunks(h2HeapChunksToConditionalize, cond2)
               Heap(unconditionalHeapChunks) + Heap(h1ConditionalizedHeapChunks) + Heap(h2ConditionalizedHeapChunks)
             }
 
 
             val g3 = mergeStore(g1, g2)
-            val h3 = mergeHeap(h1, h2)
+            val h3 = mergeHeap(h1, conditions1, h2, conditions2)
             val partiallyConsumedHeap3 = mergeHeap(
-              partiallyConsumedHeap1.getOrElse(Heap()),
-              partiallyConsumedHeap2.getOrElse(Heap())
+              partiallyConsumedHeap1.getOrElse(Heap()), conditions1,
+              partiallyConsumedHeap2.getOrElse(Heap()), conditions2,
             )
+
+            val oldHeaps3 = (mergeUsing(oldHeaps1, conditions1, oldHeaps2, conditions2)
+              (_._1)
+              ((entry, cond) => {
+                val k = entry._1
+                val h = entry._2
+                Some((k, Heap(conditionalizeChunks(h.values, cond))))
+              })
+              ((entry1, cond1, entry2, cond2) => {
+                assert(entry1._1 == entry2._1)
+                val k = entry1._1
+                val h1 = entry1._2
+                val h2 = entry2._2
+                Some((k, mergeHeap(h1, cond1, h2, cond2)))
+              }))
+
+
+
             // TODO:
             // val oldHeaps3 =
             // val invariantContexts3 =

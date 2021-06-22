@@ -302,6 +302,7 @@ object evaluator extends EvaluationRules {
         evalSeqShortCircuit(Or, s, flattened, pve, v)(Q)
 
       case implies @ ast.Implies(e0, e1) =>
+        println(implies)
         eval(s, e0, pve, v)((s1, t0, v1) =>
           evalImplies(s1, t0, e1, implies.info == FromShortCircuitingAnd, pve, v1)(Q))
 

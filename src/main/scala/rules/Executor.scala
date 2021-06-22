@@ -7,7 +7,7 @@
 package viper.silicon.rules
 
 import viper.silver.cfg.silver.SilverCfg
-import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverEdge}
+import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverEdge, SilverLoopHeadBlock}
 import viper.silver.verifier.{CounterexampleTransformer, PartialVerificationError}
 import viper.silver.verifier.errors._
 import viper.silver.verifier.reasons._
@@ -24,7 +24,8 @@ import viper.silicon.utils.freshSnap
 import viper.silicon.verifier.Verifier
 import viper.silicon.{ExecuteRecord, Map, MethodCallRecord, SymbExLogger}
 import viper.silicon.rules.execJoiner
-import viper.silver.cfg.ConditionalEdge
+import viper.silver.cfg.{ConditionalEdge, StatementBlock}
+
 import scala.collection.mutable.Queue
 
 trait ExecutionRules extends SymbolicExecutionRules {
@@ -85,34 +86,32 @@ object executor extends ExecutionRules {
     }
   }
 
-  def breadthFirstTraverse[N](start: N, next: N => Iterable[N], end: N): Iterable[N] = {
+  def breadthFirstTraverse[N](start: N, next: N => Iterable[N]): Iterable[N] = {
     val queue = Queue(start)
     var output: Vector[N] = Vector.empty
-    while (!queue.isEmpty && queue.front != end) {
+    while (!queue.isEmpty) {
       val f = queue.dequeue()
       output :+= f
-      val n = next(f)
-      queue.enqueueAll(n)
+      queue.enqueueAll(next(f).filter(!output.contains(_)))
     }
     output
   }
 
   // TODO: Is there a better algorithm?
-  private def nextJoinPoint(s: State, edge1: SilverEdge, edge2: SilverEdge): SilverBlock = {
+  private def nextJoinPoint(s: State, edge1: SilverEdge, edge2: SilverEdge): Option[SilverBlock] = {
     assert(edge1.source == edge2.source)
     val isJoinPoint = (b: SilverBlock) => s.methodCfg.inEdges(b).length > 1
     val start = edge1.source
-    val list1 = breadthFirstTraverse(edge1.target, s.methodCfg.successors, start).filter(isJoinPoint)
-    val list2 = breadthFirstTraverse(edge2.target, s.methodCfg.successors, start).filter(isJoinPoint)
+    println(s"find next join point until ${start}")
+    val list1 = breadthFirstTraverse(edge1.target, s.methodCfg.successors).filter(isJoinPoint)
+    val list2 = breadthFirstTraverse(edge2.target, s.methodCfg.successors).filter(isJoinPoint)
     for (b1 <- list1) {
       for (b2 <- list2) {
-        if (b1 == b2) return b1
+        if (b1 == b2) return Some(b1)
       }
     }
     //sys.error(s"No join point found: \nedge1:\n${edge1.target.elements.toString()}: $list1 \nedge2:\n${edge2.target.elements.toString()}: $list2")
-    // Assume this is a loop
-    // TODO: Probably not a correct assumption?
-    start
+    None
   }
 
   private def follows(s: State,
@@ -127,11 +126,16 @@ object executor extends ExecutionRules {
 
       edges match {
         case Seq() => Q(s, v)
+        // Single edges can be followed as normal.
         case Seq(edge) => follow(s, edge, v, until)(Q)
+        // This case handles joins on if statements.
         case edges if
           edges.length == 2 &&
           edges.head.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
-          edges.last.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] =>
+          edges.last.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
+          // Avoid joining on LoopHeadBlocks for now.
+          edges.head.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] &&
+          edges.last.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] =>
 
           println("begin branching")
 
@@ -140,42 +144,53 @@ object executor extends ExecutionRules {
 
           //println(s"edge1.cond: ${edge1.condition}, ${edge1.target}, edge2.cond: ${edge2.condition}, ${edge2.target}")
 
-          val joinPoint = nextJoinPoint(s, edge1, edge2)
-          println(s"found join point $joinPoint")
+          nextJoinPoint(s, edge1, edge2) match {
+            case None =>
+              // If no join point is found, branch without joining again.
+              edges.foldLeft(Success(): VerificationResult) {
+                case (fatalResult: FatalResult, _) => fatalResult
+                case (_, edge) => follow(s, edge, v, until)(Q)
+              }
+            case Some(joinPoint) => {
+              println(s"found join point $joinPoint")
 
-          // IMPORTANT: Here we assume that edge1.condition is the negation of edge2.condition.
-          println(s"edge1.condition = ${edge1.condition}, edge2.condition = ${edge2.condition}")
-          println(s"edge1.source = ${edge1.source} edge2.source = ${edge2.source}")
-          println(s"edge1.target = ${edge1.target} edge2.target = ${edge2.target}")
-          assert((edge1.condition, edge2.condition) match {
-            case (exp1, ast.Not(exp2)) => exp1 == exp2
-            case (ast.Not(exp1), exp2) => exp1 == exp2
-            case _ => false
-          })
-          eval(s, edge1.condition, pvef(edge1.condition), v)((s1, t0, v1) =>
-            execJoiner.join(s1, v1)((s2, v2, QB) =>
-              brancher.branch(s2, t0, v2)(
-                // Follow until join point.
-                (s3, v3) => follow(s3, edge1, v3, Some(joinPoint))(QB),
-                (s3, v3) => follow(s3, edge2, v3, Some(joinPoint))(QB))
-            )((entries, verifier) => {
-              val s2 = entries match {
-                case Seq(entry) => // One branch is dead
-                  entry.s
-                case Seq(entry1, entry2) => // Both branches are alive
-                  // IMPORTANT: verifier is modified by pathConditionAwareMerge!
-                  entry1.pathConditionAwareMerge(entry2)(verifier)
-                case _ =>
-                  sys.error(s"Unexpected join data entries: $entries")}
-              s2
-            })((s4, v4) => {
-              // Continue after join point.
-              println(s"continue executing join point")
-              val Seq(incomingEdge1, incomingEdge2) = s4.methodCfg.inEdges(joinPoint)
-              assert(incomingEdge1.kind == incomingEdge2.kind)
-              exec(s4, joinPoint, incomingEdge1.kind, v4, until)(Q)
-            })
-          )
+              // IMPORTANT: Here we assume that edge1.condition is the negation of edge2.condition.
+              println(s"edge1.condition = ${edge1.condition}, edge2.condition = ${edge2.condition}")
+              println(s"edge1.source = ${edge1.source} edge2.source = ${edge2.source}")
+              println(s"edge1.target = ${edge1.target} edge2.target = ${edge2.target}")
+              assert((edge1.condition, edge2.condition) match {
+                case (exp1, ast.Not(exp2)) => exp1 == exp2
+                case (ast.Not(exp1), exp2) => exp1 == exp2
+                case _ => false
+              })
+              eval(s, edge1.condition, pvef(edge1.condition), v)((s1, t0, v1) =>
+                execJoiner.join(s1, v1)((s2, v2, QB) =>
+                  brancher.branch(s2, t0, v2)(
+                    // Follow until join point.
+                    (s3, v3) => follow(s3, edge1, v3, Some(joinPoint))(QB),
+                    (s3, v3) => follow(s3, edge2, v3, Some(joinPoint))(QB))
+                )((entries, verifier) => {
+                  val s2 = entries match {
+                    case Seq(entry) => // One branch is dead
+                      entry.s
+                    case Seq(entry1, entry2) => // Both branches are alive
+                      // IMPORTANT: verifier is modified by pathConditionAwareMerge!
+                      entry1.pathConditionAwareMerge(entry2)(verifier)
+                    case _ =>
+                      sys.error(s"Unexpected join data entries: $entries")}
+                  s2
+                })((s4, v4) => {
+                  // Continue after join point.
+                  println(s"continue executing join point")
+                  // Sometimes, there are more than two incoming edges! (e.g. Ackermann_function.rs.vpr)
+                  //val Seq(incomingEdge1, incomingEdge2) = s4.methodCfg.inEdges(joinPoint)
+                  //assert(incomingEdge1.kind == incomingEdge2.kind)
+                  exec(s4, joinPoint, s4.methodCfg.inEdges(joinPoint).head.kind, v4, until)(Q)
+                })
+              )
+            }
+          }
+
         case edges =>
           edges.foldLeft(Success(): VerificationResult) {
             case (fatalResult: FatalResult, _) => fatalResult
