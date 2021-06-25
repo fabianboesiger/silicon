@@ -19,7 +19,7 @@ import viper.silicon.supporters.functions.NoopFunctionRecorder
 import viper.silicon.verifier.Verifier
 import viper.silicon.{GlobalBranchRecord, ProduceRecord, SymbExLogger}
 import viper.silicon.rules.joiner
-import viper.silicon.rules.execJoiner
+import viper.silicon.rules.producerJoiner
 
 trait ProductionRules extends SymbolicExecutionRules {
 
@@ -212,7 +212,7 @@ object producer extends ProductionRules {
         SymbExLogger.currentLog().initializeBranching()
 
         eval(s, e0, pve, v)((s1, t0, v1) => {
-          execJoiner.join(s1, v1)((s1, v1, QB) => {
+          producerJoiner.join(s1, v1)((s1, v1, QB) => {
             impLog.finish_cond()
             val branch_res =
               branch(s1, t0, v1)(
@@ -276,7 +276,7 @@ object producer extends ProductionRules {
         SymbExLogger.currentLog().initializeBranching()
         eval(s, e0, pve, v)((s1, t0, v1) => {
           // TODO: Rename s1, v1, ..., s3, v3
-          execJoiner.join(s1, v1)((s1, v1, QB) => {
+          producerJoiner.join(s1, v1)((s1, v1, QB) => {
             gbLog.finish_cond()
             val branch_res =
               branch(s1, t0, v1)(

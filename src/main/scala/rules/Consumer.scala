@@ -17,7 +17,7 @@ import viper.silicon.state.terms._
 import viper.silicon.state.terms.predef.`?r`
 import viper.silicon.verifier.Verifier
 import viper.silicon.{ConsumeRecord, GlobalBranchRecord, SymbExLogger}
-import viper.silicon.rules.execJoiner
+import viper.silicon.rules.producerJoiner
 
 trait ConsumptionRules extends SymbolicExecutionRules {
 
@@ -193,7 +193,7 @@ object consumer extends ConsumptionRules {
         SymbExLogger.currentLog().initializeBranching()
 
         evaluator.eval(s, e0, pve, v)((s1, t0, v1) => {
-          genericJoiner.join[(Heap, Term), (Heap, Term)](s1, v1)((s1, v1, QB) => {
+          consumerJoiner.join[(Heap, Term), (Heap, Term)](s1, v1)((s1, v1, QB) => {
             impLog.finish_cond()
             val branch_res =
               branch(s1, t0, v1)(
@@ -214,8 +214,14 @@ object consumer extends ConsumptionRules {
                 (entry.s, entry.data)
               case Seq(entry1, entry2) => // Both branches are alive
                 // IMPORTANT: verifier is modified by pathConditionAwareMerge!
-                // TODO: Join entry data
-                (entry1.pathConditionAwareMerge(entry2)(verifier), entry1.data)
+                val mergedData = (
+                  State.mergeHeap(
+                    entry1.data._1, And(entry1.pathConditions.branchConditions),
+                    entry2.data._1, And(entry2.pathConditions.branchConditions)
+                  ),
+                  Combine(entry1.data._2, entry2.data._2) // TODO: Correct?
+                )
+                (entry1.pathConditionAwareMerge(entry2)(verifier), mergedData)
               case _ =>
                 sys.error(s"Unexpected join data entries: $entries")}
             s2
@@ -250,7 +256,7 @@ object consumer extends ConsumptionRules {
         val sepIdentifier = SymbExLogger.currentLog().insert(gbLog)
         SymbExLogger.currentLog().initializeBranching()
         eval(s, e0, pve, v)((s1, t0, v1) => {
-          genericJoiner.join[(Heap, Term), (Heap, Term)](s1, v1)((s1, v1, QB) => {
+          consumerJoiner.join[(Heap, Term), (Heap, Term)](s1, v1)((s1, v1, QB) => {
             gbLog.finish_cond()
             val branch_res =
               branch(s1, t0, v1)(
@@ -271,8 +277,14 @@ object consumer extends ConsumptionRules {
                 (entry.s, entry.data)
               case Seq(entry1, entry2) => // Both branches are alive
                 // IMPORTANT: verifier is modified by pathConditionAwareMerge!
-                // TODO: Join entry data
-                (entry1.pathConditionAwareMerge(entry2)(verifier), entry1.data)
+                val mergedData = (
+                  State.mergeHeap(
+                    entry1.data._1, And(entry1.pathConditions.branchConditions),
+                    entry2.data._1, And(entry2.pathConditions.branchConditions)
+                  ),
+                  Combine(entry1.data._2, entry2.data._2) // TODO: Correct?
+                )
+                (entry1.pathConditionAwareMerge(entry2)(verifier), mergedData)
               case _ =>
                 sys.error(s"Unexpected join data entries: $entries")}
             s2

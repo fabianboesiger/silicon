@@ -11,31 +11,30 @@ import viper.silicon.interfaces.{Success, VerificationResult}
 import viper.silicon.state.State
 import viper.silicon.verifier.Verifier
 
-case class ExecJoinDataEntry(s: State, pathConditions: RecordedPathConditions) {
+case class ConsumerJoinDataEntry[D](s: State, data: D, pathConditions: RecordedPathConditions) {
   // Instead of merging states, we can directly merge JoinDataEntries to obtain new States.
   // This gives us more information about the path conditions.
-  def pathConditionAwareMerge(other: ExecJoinDataEntry)(verifier: Verifier): State = {
+  def pathConditionAwareMerge(other: ConsumerJoinDataEntry[D])(verifier: Verifier): State = {
     State.merge(this.s, this.pathConditions, other.s, other.pathConditions, verifier)
   }
 }
 
-// Mostly the same as joiner, but merge takes a Verifier as an additional input argument.
-// This allows us to do more complete state merges.
-object execJoiner {
-  def join(s: State, v: Verifier)
-                 (block: (State, Verifier, (State, Verifier) => VerificationResult) => VerificationResult)
-                 (merge: (Seq[ExecJoinDataEntry], Verifier) => State)
-                 (Q: (State, Verifier) => VerificationResult)
+
+object consumerJoiner {
+  def join[D, JD](s: State, v: Verifier)
+                 (block: (State, Verifier, (State, D, Verifier) => VerificationResult) => VerificationResult)
+                 (merge: (Seq[ConsumerJoinDataEntry[D]], Verifier) => (State, JD))
+                 (Q: (State, JD, Verifier) => VerificationResult)
   : VerificationResult = {
 
-    var entries: Seq[ExecJoinDataEntry] = Vector.empty
+    var entries: Seq[ConsumerJoinDataEntry[D]] = Vector.empty
 
     executionFlowController.locally(s, v)((s1, v1) => {
       val preMark = v1.decider.setPathConditionMark()
       val s2 = s1.copy(underJoin = true)
 
-      block(s2, v1, (s3, v2) => {
-        entries :+= ExecJoinDataEntry(s3, v2.decider.pcs.after(preMark))
+      block(s2, v1, (s3, data, v2) => {
+        entries :+= ConsumerJoinDataEntry(s3, data, v2.decider.pcs.after(preMark))
         Success()
       })
     }) && {
@@ -46,7 +45,7 @@ object execJoiner {
          */
         Success()
       } else {
-        val sJoined = merge(entries, v)
+        val (sJoined, dataJoined) = merge(entries, v)
 
         entries foreach (entry => {
           val pcs = entry.pathConditions.conditionalized
@@ -54,7 +53,7 @@ object execJoiner {
           v.decider.assume(pcs)
         })
 
-        Q(sJoined, v)
+        Q(sJoined, dataJoined, v)
       }
     }
   }

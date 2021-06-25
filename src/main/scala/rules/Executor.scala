@@ -23,7 +23,7 @@ import viper.silicon.state.terms.predef.`?r`
 import viper.silicon.utils.freshSnap
 import viper.silicon.verifier.Verifier
 import viper.silicon.{ExecuteRecord, Map, MethodCallRecord, SymbExLogger}
-import viper.silicon.rules.execJoiner
+import viper.silicon.rules.producerJoiner
 import viper.silver.cfg.{ConditionalEdge, StatementBlock}
 
 import scala.collection.mutable.Queue
@@ -88,13 +88,13 @@ object executor extends ExecutionRules {
 
   def breadthFirstTraverse[N](start: N, next: N => Iterable[N]): Iterable[N] = {
     val queue = Queue(start)
-    var output: Vector[N] = Vector.empty
+    var visited: Vector[N] = Vector.empty
     while (!queue.isEmpty) {
       val f = queue.dequeue()
-      output :+= f
-      queue.enqueueAll(next(f).filter(!output.contains(_)))
+      visited :+= f
+      queue.enqueueAll(next(f).filter(!visited.contains(_)))
     }
-    output
+    visited
   }
 
   // TODO: Is there a better algorithm?
@@ -134,6 +134,7 @@ object executor extends ExecutionRules {
           edges.head.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
           edges.last.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
           // Avoid joining on LoopHeadBlocks for now.
+          // TODO: Add support for loops
           edges.head.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] &&
           edges.last.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] =>
 
@@ -164,7 +165,7 @@ object executor extends ExecutionRules {
                 case _ => false
               })
               eval(s, edge1.condition, pvef(edge1.condition), v)((s1, t0, v1) =>
-                execJoiner.join(s1, v1)((s2, v2, QB) =>
+                producerJoiner.join(s1, v1)((s2, v2, QB) =>
                   brancher.branch(s2, t0, v2)(
                     // Follow until join point.
                     (s3, v3) => follow(s3, edge1, v3, Some(joinPoint))(QB),

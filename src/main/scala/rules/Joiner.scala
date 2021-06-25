@@ -40,10 +40,15 @@ object joiner extends JoiningRules {
          * affected by the evaluation - such as the store (by let-bindings) or the heap (by
          * state consolidations) to their initial values.
          */
+        //println("NORMAL JOIN!")
         val s4 = s3.copy(g = s1.g,
           h = s1.h,
           oldHeaps = s1.oldHeaps,
-          underJoin = s1.underJoin)
+          underJoin = s1.underJoin,
+          // TODO: Evaluation should not affect partiallyConsumedHeap, probably
+          ssCache = s1.ssCache,
+          partiallyConsumedHeap = s1.partiallyConsumedHeap
+        )
         entries :+= JoinDataEntry(s4, data, v2.decider.pcs.after(preMark))
         Success()
       })

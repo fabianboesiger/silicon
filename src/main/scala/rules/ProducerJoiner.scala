@@ -11,39 +11,31 @@ import viper.silicon.interfaces.{Success, VerificationResult}
 import viper.silicon.state.State
 import viper.silicon.verifier.Verifier
 
-case class GenericJoinDataEntry[D](s: State, data: D, pathConditions: RecordedPathConditions) {
+case class ProducerJoinDataEntry(s: State, pathConditions: RecordedPathConditions) {
   // Instead of merging states, we can directly merge JoinDataEntries to obtain new States.
   // This gives us more information about the path conditions.
-  def pathConditionAwareMerge(other: GenericJoinDataEntry[D])(verifier: Verifier): State = {
+  def pathConditionAwareMerge(other: ProducerJoinDataEntry)(verifier: Verifier): State = {
     State.merge(this.s, this.pathConditions, other.s, other.pathConditions, verifier)
   }
 }
 
-
-object genericJoiner {
-  def join[D, JD](s: State, v: Verifier)
-                 (block: (State, Verifier, (State, D, Verifier) => VerificationResult) => VerificationResult)
-                 (merge: (Seq[GenericJoinDataEntry[D]], Verifier) => (State, JD))
-                 (Q: (State, JD, Verifier) => VerificationResult)
+// Mostly the same as joiner, but merge takes a Verifier as an additional input argument.
+// This allows us to do more complete state merges.
+object producerJoiner {
+  def join(s: State, v: Verifier)
+                 (block: (State, Verifier, (State, Verifier) => VerificationResult) => VerificationResult)
+                 (merge: (Seq[ProducerJoinDataEntry], Verifier) => State)
+                 (Q: (State, Verifier) => VerificationResult)
   : VerificationResult = {
 
-    var entries: Seq[GenericJoinDataEntry[D]] = Vector.empty
+    var entries: Seq[ProducerJoinDataEntry] = Vector.empty
 
     executionFlowController.locally(s, v)((s1, v1) => {
       val preMark = v1.decider.setPathConditionMark()
       val s2 = s1.copy(underJoin = true)
 
-      block(s2, v1, (s3, data, v2) => {
-        /* In order to prevent mismatches between different final states of the evaluation
-         * paths that are to be joined, we reset certain state properties that may have been
-         * affected by the evaluation - such as the store (by let-bindings) or the heap (by
-         * state consolidations) to their initial values.
-         */
-        val s4 = s3.copy(g = s1.g,
-          h = s1.h,
-          oldHeaps = s1.oldHeaps,
-          underJoin = s1.underJoin)
-        entries :+= GenericJoinDataEntry(s4, data, v2.decider.pcs.after(preMark))
+      block(s2, v1, (s3, v2) => {
+        entries :+= ProducerJoinDataEntry(s3, v2.decider.pcs.after(preMark))
         Success()
       })
     }) && {
@@ -54,7 +46,7 @@ object genericJoiner {
          */
         Success()
       } else {
-        val (sJoined, dataJoined) = merge(entries, v)
+        val sJoined = merge(entries, v)
 
         entries foreach (entry => {
           val pcs = entry.pathConditions.conditionalized
@@ -62,7 +54,7 @@ object genericJoiner {
           v.decider.assume(pcs)
         })
 
-        Q(sJoined, dataJoined, v)
+        Q(sJoined, v)
       }
     }
   }

@@ -201,6 +201,9 @@ object State {
               val e2 = s2.productElement(ix)
               if (e1 != e2) {
                 err ++= s"\n\tField index ${s1.productElementName(ix)} not equal"
+                err ++= s"\n\t\t state1: $e1"
+                err ++= s"\n\t\t state2: $e2"
+
               }
             }
             sys.error(s"State merging failed: unexpected mismatch between symbolic states: $err")
@@ -250,6 +253,43 @@ object State {
     } })
   }
   */
+
+  def conditionalizeChunks(h: Iterable[Chunk], cond: Term) = {
+    h map (c => {
+      c match {
+
+        case c: GeneralChunk =>
+          c.withPerm(Ite(cond, c.perm, NoPerm()))
+        /* Somehow this fails more tests than the above version
+          val p = verifier.decider.fresh("perm", sorts.Perm)
+          mergePcs :+= Implies(cond, p === c.perm)
+          c.withPerm(p)
+        */
+
+        /* Z3 error: Unknown constant t
+
+        case c: NonQuantifiedChunk =>
+          val t = verifier.decider.fresh(c.snap.sort)
+          mergePcs :+= Implies(cond, t === c.snap)
+          c.withSnap(t)
+        case c: QuantifiedChunk =>
+          val t = verifier.decider.fresh(c.snapshotMap.sort)
+          mergePcs :+= Implies(cond, t === c.snapshotMap)
+          c.withSnapshotMap(t)
+         */
+
+        case _ => sys.error("Chunk type not conditionalizable.")
+      }
+    })
+  }
+
+  def mergeHeap(h1: Heap, cond1: Term, h2: Heap, cond2: Term) = {
+    val (unconditionalHeapChunks, h1HeapChunksToConditionalize) = h1.values.partition(c1 => h2.values.find(_ == c1).nonEmpty)
+    val h2HeapChunksToConditionalize = h2.values.filter(c2 => unconditionalHeapChunks.find(_ == c2).isEmpty)
+    val h1ConditionalizedHeapChunks = conditionalizeChunks(h1HeapChunksToConditionalize, cond1)
+    val h2ConditionalizedHeapChunks = conditionalizeChunks(h2HeapChunksToConditionalize, cond2)
+    Heap(unconditionalHeapChunks) + Heap(h1ConditionalizedHeapChunks) + Heap(h2ConditionalizedHeapChunks)
+  }
 
   def merge(s1: State, pc1: RecordedPathConditions, s2: State, pc2: RecordedPathConditions, verifier: Verifier): State = {
     /* TODO: Instead of aborting with a pattern mismatch, all mismatches
@@ -421,9 +461,11 @@ object State {
             }
             */
 
+            /*
             val conditionalizeChunks = (h: Iterable[Chunk], cond: Term) => {
               h map (c => {
                 c match {
+
                   case c: GeneralChunk =>
                     c.withPerm(Ite(cond, c.perm, NoPerm()))
                     /* Somehow this fails more tests than the above version
@@ -431,6 +473,19 @@ object State {
                       mergePcs :+= Implies(cond, p === c.perm)
                       c.withPerm(p)
                     */
+
+                  /* Z3 error: Unknown constant t
+
+                  case c: NonQuantifiedChunk =>
+                    val t = verifier.decider.fresh(c.snap.sort)
+                    mergePcs :+= Implies(cond, t === c.snap)
+                    c.withSnap(t)
+                  case c: QuantifiedChunk =>
+                    val t = verifier.decider.fresh(c.snapshotMap.sort)
+                    mergePcs :+= Implies(cond, t === c.snapshotMap)
+                    c.withSnapshotMap(t)
+                   */
+
                   case _ => sys.error("Chunk type not conditionalizable.")
                 }
               })
@@ -439,11 +494,16 @@ object State {
             val mergeHeap = (h1: Heap, cond1: Term, h2: Heap, cond2: Term) => {
               val (unconditionalHeapChunks, h1HeapChunksToConditionalize) = h1.values.partition(c1 => h2.values.find(_ == c1).nonEmpty)
               val h2HeapChunksToConditionalize = h2.values.filter(c2 => unconditionalHeapChunks.find(_ == c2).isEmpty)
+              println(s"H1TOCOND CHUNKS: $h1HeapChunksToConditionalize")
+              println(s"H2TOCOND CHUNKS: $h2HeapChunksToConditionalize")
               val h1ConditionalizedHeapChunks = conditionalizeChunks(h1HeapChunksToConditionalize, cond1)
               val h2ConditionalizedHeapChunks = conditionalizeChunks(h2HeapChunksToConditionalize, cond2)
+              println(s"UNCOND CHUNKS: $unconditionalHeapChunks")
+              println(s"H1COND CHUNKS: $h1ConditionalizedHeapChunks")
+              println(s"H2COND CHUNKS: $h2ConditionalizedHeapChunks")
               Heap(unconditionalHeapChunks) + Heap(h1ConditionalizedHeapChunks) + Heap(h2ConditionalizedHeapChunks)
             }
-
+            */
 
             val g3 = mergeStore(g1, g2)
             val h3 = mergeHeap(h1, conditions1, h2, conditions2)
@@ -452,12 +512,13 @@ object State {
               partiallyConsumedHeap2.getOrElse(Heap()), conditions2,
             )
 
-            val oldHeaps3 = (mergeUsing(oldHeaps1, conditions1, oldHeaps2, conditions2)
+            val oldHeaps3 = Map.from(mergeUsing(oldHeaps1, conditions1, oldHeaps2, conditions2)
               (_._1)
               ((entry, cond) => {
                 val k = entry._1
                 val h = entry._2
-                Some((k, Heap(conditionalizeChunks(h.values, cond))))
+                //Some((k, Heap(conditionalizeChunks(h.values, cond))))
+                None
               })
               ((entry1, cond1, entry2, cond2) => {
                 assert(entry1._1 == entry2._1)
@@ -470,8 +531,11 @@ object State {
 
 
             // TODO:
-            // val oldHeaps3 =
-            // val invariantContexts3 =
+            // val oldHeaps3 = (implmentation above correct?)
+            // val invariantContexts3 = ???
+
+            // val reserveHeaps3 = ???
+            // val conservedPcs3 = ???
 
             //println(s"merge pcs: $mergePcs")
 
@@ -488,9 +552,12 @@ object State {
               pmCache = Map.empty,
               g = g3,
               h = h3,
+              oldHeaps = oldHeaps3,
               partiallyConsumedHeap = Some(partiallyConsumedHeap3))
 
-            stateConsolidator.consolidate(s3, verifier)
+            val s4 = stateConsolidator.consolidate(s3, verifier)
+            //println(s"CONSOLIDATED ${s4.h.values}")
+            s4
           case _ =>
             val err = new StringBuilder()
             for (ix <- 0 until s1.productArity) yield {
@@ -500,7 +567,7 @@ object State {
                 err ++= s"\n\tField index ${s1.productElementName(ix)} not equal"
               }
             }
-            sys.error(s"State merging failed: unexpected mismatch between symbolic states: $err")
+            sys.error(s"PC-aware state merging failed: unexpected mismatch between symbolic states: $err")
         }
     }
   }

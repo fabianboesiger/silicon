@@ -12,6 +12,7 @@ import scala.util.matching.Regex
 import scala.util.Properties._
 import org.rogach.scallop._
 import viper.silver.frontend.SilFrontendConfig
+import viper.silver.ast.utility.LanguageFeature
 
 class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
   import Config._
@@ -455,15 +456,34 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
 
   val enableMoreCompleteExhale: ScallopOption[Boolean] = opt[Boolean]("enableMoreCompleteExhale",
     descr = "Enable a more complete exhale version.",
-    default = Some(true),
-    noshort = true
+    default = Some(false),
+    noshort = false
   )
 
   val moreJoins: ScallopOption[Boolean] = opt[Boolean]("moreJoins",
     descr = "Enable more joins using a more complete implementation of state merging.",
-    default = Some(true),
+    default = Some(false),
     noshort = true
   )
+
+  private val rawUnsupportedLanguageFeatures: ScallopOption[String] = opt[String]("unsupportedLanguageFeatures",
+    descr = "Reject programs that make use of certain language features (MW, QP, QPMW, QPP, QPF)",
+    default = Some("MW,QP,QPMW,QPP,QPF,MWFUN"),
+    noshort = true
+  )
+
+  lazy val unsupportedLanguageFeatures : Seq[LanguageFeature.LanguageFeature] = {
+    rawUnsupportedLanguageFeatures().split(",").map(_.trim).collect({
+      case "MW" => LanguageFeature.MagicWands
+      case "QP" => LanguageFeature.QuantifiedPermissions
+      case "QPMW" => LanguageFeature.QuantifiedMagicWands
+      case "QPP" => LanguageFeature.QuantifiedPredicates
+      case "QPF" => LanguageFeature.QuantifiedFields
+      case "MWFUN" => LanguageFeature.MagicWandFunction
+    })
+  }
+
+  def supportsLanguageFeature(lf: LanguageFeature.LanguageFeature) : Boolean = ! unsupportedLanguageFeatures.contains(lf)
 
   val disableMostStateConsolidations: ScallopOption[Boolean] = opt[Boolean]("disableMostStateConsolidations",
     descr = "Disable state consolidations, except on-retry and single-merge.",
