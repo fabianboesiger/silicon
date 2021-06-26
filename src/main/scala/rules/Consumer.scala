@@ -17,7 +17,6 @@ import viper.silicon.state.terms._
 import viper.silicon.state.terms.predef.`?r`
 import viper.silicon.verifier.Verifier
 import viper.silicon.{ConsumeRecord, GlobalBranchRecord, SymbExLogger}
-import viper.silicon.rules.producerJoiner
 
 trait ConsumptionRules extends SymbolicExecutionRules {
 

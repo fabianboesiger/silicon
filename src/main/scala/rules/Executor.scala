@@ -7,7 +7,7 @@
 package viper.silicon.rules
 
 import viper.silver.cfg.silver.SilverCfg
-import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverEdge, SilverLoopHeadBlock}
+import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverEdge}
 import viper.silver.verifier.{CounterexampleTransformer, PartialVerificationError}
 import viper.silver.verifier.errors._
 import viper.silver.verifier.reasons._
@@ -23,10 +23,7 @@ import viper.silicon.state.terms.predef.`?r`
 import viper.silicon.utils.freshSnap
 import viper.silicon.verifier.Verifier
 import viper.silicon.{ExecuteRecord, Map, MethodCallRecord, SymbExLogger}
-import viper.silicon.rules.producerJoiner
 import viper.silver.cfg.{ConditionalEdge, StatementBlock}
-
-import scala.collection.mutable.Queue
 
 trait ExecutionRules extends SymbolicExecutionRules {
   def exec(s: State,
@@ -119,7 +116,7 @@ object executor extends ExecutionRules {
           val branchPoint = edge1.source
 
           s.methodCfg.joinPoints.get(branchPoint) match {
-            case Some(joinPoint) => {
+            case Some(joinPoint) =>
               //println(s"found join point $joinPoint")
               //println(s"edge1.condition = ${edge1.condition}, edge2.condition = ${edge2.condition}")
               //println(s"edge1.source = ${edge1.source} edge2.source = ${edge2.source}")
@@ -157,13 +154,12 @@ object executor extends ExecutionRules {
                   exec(s4, joinPoint, s4.methodCfg.inEdges(joinPoint).head.kind, v4, until)(Q)
                 })
               )
-            }
-            case None => {
+
+            case None =>
               edges.foldLeft(Success(): VerificationResult) {
                 case (fatalResult: FatalResult, _) => fatalResult
                 case (_, edge) => follow(s, edge, v)(Q)
               }
-            }
           }
 
 

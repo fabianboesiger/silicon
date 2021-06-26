@@ -18,8 +18,6 @@ import viper.silicon.state._
 import viper.silicon.supporters.functions.NoopFunctionRecorder
 import viper.silicon.verifier.Verifier
 import viper.silicon.{GlobalBranchRecord, ProduceRecord, SymbExLogger}
-import viper.silicon.rules.joiner
-import viper.silicon.rules.producerJoiner
 
 trait ProductionRules extends SymbolicExecutionRules {
 
