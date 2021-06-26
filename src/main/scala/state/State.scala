@@ -11,15 +11,16 @@ import viper.silver.cfg.silver.SilverCfg
 import viper.silicon.common.Mergeable
 import viper.silicon.common.collections.immutable.InsertionOrderedSet
 import viper.silicon.decider.RecordedPathConditions
-import viper.silicon.interfaces.state.{Chunk, ChunkIdentifer, GeneralChunk, NonQuantifiedChunk, QuantifiedChunk}
-import viper.silicon.rules.{chunkSupporter, stateConsolidator}
+import viper.silicon.interfaces.state.{Chunk, GeneralChunk}
+import viper.silicon.rules.{stateConsolidator}
 import viper.silicon.state.State.OldHeaps
-import viper.silicon.state.terms.{And, Equals, Implies, Ite, NoPerm, Term, Var, sorts}
+import viper.silicon.state.terms.{And, Equals, Implies, Ite, NoPerm, Term, Var}
 import viper.silicon.supporters.functions.{FunctionRecorder, NoopFunctionRecorder}
 import viper.silicon.{Map, Stack}
 
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{HashMap, Queue}
 import viper.silicon.verifier.Verifier
+import viper.silver.cfg.silver.SilverCfg.{SilverBlock, SilverLoopHeadBlock}
 
 final case class State(g: Store = Store(),
                        h: Heap = Heap(),
@@ -120,6 +121,7 @@ final case class State(g: Store = Store(),
     relevantQuantifiedVariables(_ => true)
 
   override val toString = s"${this.getClass.getSimpleName}(...)"
+
 }
 
 object State {
@@ -235,22 +237,22 @@ object State {
   }
 
   /*
-  def mergeUsing[A, B, C, D](l1: Iterable[A], c1: C, l2: Iterable[A], c2: C)
-                            (id: A => B)
-                            (fOnce: (Set[A], C) => Option[A])
-                            (fTwice: (Set[A], C, Set[A], C) => Option[A])
-  : Iterable[A] = {
+  def mergeUsing[K, V, D](map1: Map[K, V], data1: D, map2: Map[K, V], data2: D)
+                         (fOnce: (V, D) => Option[V])
+                         (fTwice: (V, D, V, D) => Option[V])
+                         : Map[K, V] = {
 
-    val map1 = l1.foldLeft[MultiMap[B, A]](MultiMap.empty)((map, e) => map.addBinding(id(e), e))
-    val map2 = l2.foldLeft[MultiMap[B, A]](MultiMap.empty)((map, e) => map.addBinding(id(e), e))
-
-    map1.map.flatMap({ case (k, v1) => map2.map.get(k) match {
-      case Some(v2) => fTwice(v1, c1, v2, c2)
-      case None => fOnce(v1, c1)
-    } }) ++ map2.map.flatMap({ case (k, v2) => map1.map.get(k) match {
-      case Some(_) => None // Already considered in first case: Some(fTwice(v1, c1, v2, c2))
-      case None => fOnce(v2, c2)
-    } })
+    map1.flatMap({ case (k, v1) =>
+      (map2.get(k) match {
+        case Some(v2) => fTwice(v1, data1, v2, data2)
+        case None => fOnce(v1, data1)
+      }).map(v => (k, v))
+    }) ++ map2.flatMap({ case (k, v2) =>
+      (map1.get(k) match {
+        case Some(_) => None // Already considered in first case: Some(fTwice(v1, c1, v2, c2))
+        case None => fOnce(v2, data2)
+      }).map(v => (k, v))
+    })
   }
   */
 

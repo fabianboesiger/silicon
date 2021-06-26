@@ -219,7 +219,8 @@ object consumer extends ConsumptionRules {
                     entry1.data._1, And(entry1.pathConditions.branchConditions),
                     entry2.data._1, And(entry2.pathConditions.branchConditions)
                   ),
-                  Combine(entry1.data._2, entry2.data._2) // TODO: Correct?
+                  // Asume that entry1.pcs is inverse of entry2.pcs
+                  Ite(And(entry1.pathConditions.branchConditions), entry1.data._2, entry2.data._2)
                 )
                 (entry1.pathConditionAwareMerge(entry2)(verifier), mergedData)
               case _ =>
@@ -282,7 +283,8 @@ object consumer extends ConsumptionRules {
                     entry1.data._1, And(entry1.pathConditions.branchConditions),
                     entry2.data._1, And(entry2.pathConditions.branchConditions)
                   ),
-                  Combine(entry1.data._2, entry2.data._2) // TODO: Correct?
+                  // Asume that entry1.pcs is inverse of entry2.pcs
+                  Ite(And(entry1.pathConditions.branchConditions), entry1.data._2, entry2.data._2)
                 )
                 (entry1.pathConditionAwareMerge(entry2)(verifier), mergedData)
               case _ =>
