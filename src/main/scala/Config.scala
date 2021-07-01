@@ -206,7 +206,7 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
   val timeout: ScallopOption[Int] = opt[Int]("timeout",
     descr = ( "Time out after approx. n seconds. The timeout is for the whole verification, "
             + "not per method or proof obligation (default: 0, i.e. no timeout)."),
-    default = Some(0),
+    default = Some(180),
     noshort = true
   )
 
@@ -456,13 +456,13 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
 
   val enableMoreCompleteExhale: ScallopOption[Boolean] = opt[Boolean]("enableMoreCompleteExhale",
     descr = "Enable a more complete exhale version.",
-    default = Some(true),
+    default = Some(false),
     noshort = false
   )
 
   val moreJoins: ScallopOption[Boolean] = opt[Boolean]("moreJoins",
     descr = "Enable more joins using a more complete implementation of state merging.",
-    default = Some(true),
+    default = Some(false),
     noshort = true
   )
 

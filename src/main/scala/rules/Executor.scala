@@ -63,7 +63,7 @@ object executor extends ExecutionRules {
     until match {
       // Stop following edges if we have reached the join point.
       case Some(stop) if stop == edge.target =>
-        println("join point reached, stop following edges")
+        //println("join point reached, stop following edges")
         Q(s1, v)
       // Else continue following edges as normal.
       case _ =>
@@ -99,15 +99,13 @@ object executor extends ExecutionRules {
         case Seq(edge) => follow(s, edge, v, until)(Q)
         // This case handles joins on if statements.
         case edges if
-          edges.length == 2 &&
-          edges.head.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
-          edges.last.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
-          // Avoid joining on LoopHeadBlocks for now.
-          // TODO: Add support for loops
-          edges.head.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] &&
-          edges.last.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] =>
+            edges.length == 2 &&
+            edges.head.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
+            edges.last.isInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]] &&
+            edges.head.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] &&
+            edges.last.source.isInstanceOf[StatementBlock[ast.Stmt, ast.Exp]] =>
 
-          println("begin branching")
+          //println("begin branching")
 
           val edge1 = edges.head.asInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]]
           val edge2 = edges.last.asInstanceOf[ConditionalEdge[ast.Stmt, ast.Exp]]
@@ -147,7 +145,7 @@ object executor extends ExecutionRules {
                   s2
                 })((s4, v4) => {
                   // Continue after join point.
-                  println(s"continue executing join point")
+                  //println(s"continue executing join point")
                   // Sometimes, there are more than two incoming edges! (e.g. Ackermann_function.rs.vpr)
                   //val Seq(incomingEdge1, incomingEdge2) = s4.methodCfg.inEdges(joinPoint)
                   //assert(incomingEdge1.kind == incomingEdge2.kind)

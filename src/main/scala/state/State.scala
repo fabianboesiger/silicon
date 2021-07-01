@@ -22,7 +22,7 @@ import viper.silicon.verifier.Verifier
 
 final case class State(g: Store = Store(),
                        h: Heap = Heap(),
-                       oldHeaps: OldHeaps = Map.empty, // TODO: Merge
+                       oldHeaps: OldHeaps = Map.empty,
 
                        parallelizeBranches: Boolean = false,
 
@@ -191,25 +191,33 @@ object State {
                     pmCache = pmCache3)
 
           case _ =>
-            val err = new StringBuilder()
-            for (ix <- 0 until s1.productArity) yield {
-              val e1 = s1.productElement(ix)
-              val e2 = s2.productElement(ix)
-              if (e1 != e2) {
-                err ++= s"\n\tField index ${s1.productElementName(ix)} not equal"
-                err ++= s"\n\t\t state1: $e1"
-                err ++= s"\n\t\t state2: $e2"
-
-              }
-            }
-            sys.error(s"State merging failed: unexpected mismatch between symbolic states: $err")
+            println("State merging failed in pure merge.")
+            println(s1.conservedPcs)
+            println(s2.conservedPcs)
+            println(s1.conservedPcs == s2.conservedPcs)
+            generateStateMismatchErrorMessage(s1, s2)
       }
     }
   }
 
+  private def generateStateMismatchErrorMessage(s1: State, s2: State): Nothing = {
+    val err = new StringBuilder()
+    for (ix <- 0 until s1.productArity) yield {
+      val e1 = s1.productElement(ix)
+      val e2 = s2.productElement(ix)
+      if (e1 != e2) {
+        err ++= s"\n\tField index ${s1.productElementName(ix)} not equal"
+        err ++= s"\n\t\t state1: $e1"
+        err ++= s"\n\t\t state2: $e2"
+
+      }
+    }
+    sys.error(s"State merging failed: unexpected mismatch between symbolic states: $err")
+  }
+
   // Merges two maps based on fOnce, if entry only exists in one map,
   // and fTwice if entry exists in both maps.
-  def mergeMaps[K, V, D](map1: Map[K, V], data1: D, map2: Map[K, V], data2: D)
+  private def mergeMaps[K, V, D](map1: Map[K, V], data1: D, map2: Map[K, V], data2: D)
                          (fOnce: (V, D) => Option[V])
                          (fTwice: (V, D, V, D) => Option[V])
                          : Map[K, V] = {
@@ -228,7 +236,7 @@ object State {
   }
 
 
-  def conditionalizeChunks(h: Iterable[Chunk], cond: Term): Iterable[Chunk] = {
+  private def conditionalizeChunks(h: Iterable[Chunk], cond: Term): Iterable[Chunk] = {
     h map (c => {
       c match {
 
@@ -255,6 +263,10 @@ object State {
         case _ => sys.error("Chunk type not conditionalizable.")
       }
     })
+  }
+
+  private def conditionalizeHeap(h: Heap, cond: Term): Heap = {
+    Heap(conditionalizeChunks(h.values, cond))
   }
 
   def mergeHeap(h1: Heap, cond1: Term, h2: Heap, cond2: Term): Heap = {
@@ -296,7 +308,7 @@ object State {
           case State(g2, h2, oldHeaps2,
           `parallelizeBranches1`,
           `recordVisited1`, `visited1`,
-          `methodCfg1`, `invariantContexts1`,
+          `methodCfg1`, invariantContexts2,
           constrainableARPs2,
           `quantifiedVariables1`,
           `retrying1`,
@@ -307,10 +319,10 @@ object State {
           triggerExp2,
           partiallyConsumedHeap2,
           `permissionScalingFactor1`,
-          `reserveHeaps1`, `reserveCfgs1`, `conservedPcs1`, `recordPcs1`, `exhaleExt1`,
+          reserveHeaps2, `reserveCfgs1`, conservedPcs2, `recordPcs1`, `exhaleExt1`,
           `applyHeuristics1`, `heuristicsDepth1`, `triggerAction1`,
           ssCache2, `hackIssue387DisablePermissionConsumption1`,
-          `qpFields1`, `qpPredicates1`, `qpMagicWands1`, smCache2, pmCache2, `smDomainNeeded1`,
+          `qpFields1`, `qpPredicates1`, `qpMagicWands1`, smCache2, pmCache2, smDomainNeeded2,
           `predicateSnapMap1`, `predicateFormalVarMap1`, `hack`) =>
 
             val functionRecorder3 = functionRecorder1.merge(functionRecorder2)
@@ -318,16 +330,12 @@ object State {
             val possibleTriggers3 = possibleTriggers1 ++ possibleTriggers2
             val constrainableARPs3 = constrainableARPs1 ++ constrainableARPs2
 
-            //val smCache3 = smCache1.union(smCache2)
-            //val pmCache3 = pmCache1 ++ pmCache2
-
-            //val ssCache3 = ssCache1 ++ ssCache2
+            val smDomainNeeded3 = smDomainNeeded1 || smDomainNeeded2 // TODO: Use AND or OR to merge?
 
             val conditions1 = And(pc1.branchConditions)
             val conditions2 = And(pc2.branchConditions)
-            //println(s"cond1: $conditions1, cond2: $conditions2")
 
-            var mergePcs: Vector[Term] = Vector.empty
+            //var mergePcs: Seq[Term] = Vector.empty
 
             val mergeStore = (g1: Store, g2: Store) => {
               Store(mergeMaps(g1.values, conditions1, g2.values, conditions2)
@@ -341,128 +349,29 @@ object State {
                   Some(v1)
                 } else {
                   assert(v1.sort == v2.sort)
-                  val t = verifier.decider.fresh(v1.sort)
-                  mergePcs :+= Implies(cond1, Equals(t, v1))
-                  mergePcs :+= Implies(cond2, Equals(t, v2))
-                  Some(t)
+                  // TODO: Is this faster?
+                  //val t = verifier.decider.fresh(v1.sort)
+                  //mergePcs :+= Implies(cond1, Equals(t, v1))
+                  //mergePcs :+= Implies(cond2, Equals(t, v2))
+                  //Some(t)
+                  Some(Ite(cond1, v1, v2))
                 }
               }))
             }
-
-
-            /*
-            // ChunkKeys are used to correctly merge heap chunks.
-            // Chunks with the same ChunkKey are merged together.
-            trait ChunkKey
-            case class QuantifiedChunkKey(quantifiedVars: Seq[Var], id: ChunkIdentifer) extends ChunkKey // TODO
-            case class NonQuantifiedChunkKey(args: Seq[Term], id: ChunkIdentifer) extends ChunkKey
-
-            val mergeHeap = (h1: Heap, h2: Heap) => {
-              Heap(mergeUsing(h1.values, conditions1, h2.values, conditions2)
-              (_ match {
-                case c: NonQuantifiedChunk => NonQuantifiedChunkKey(c.args, c.id)
-                case c: QuantifiedChunk => QuantifiedChunkKey(c.quantifiedVars, c.id) // TODO
-              })
-              ((chunk, cond) => {
-                chunk match {
-                  case c: NonQuantifiedChunk => {
-                    val t = verifier.decider.fresh("merge_1_nqc_t", c.snap.sort)
-                    val p = verifier.decider.fresh("merge_1_nqc_p", sorts.Perm)
-                    mergePcs :+= Implies(cond, And(Equals(t, c.snap), Equals(p, c.perm)))
-                    Some(c.withSnap(t).withPerm(p))
-                  }
-                  case c: QuantifiedChunk => {
-                    val t = verifier.decider.fresh("merge_1_qc_t", c.snapshotMap.sort)
-                    val p = verifier.decider.fresh("merged_1_qc_p", sorts.Perm)
-                    mergePcs :+= Implies(cond, And(Equals(t, c.snapshotMap), Equals(p, c.perm)))
-                    Some(c.withSnapshotMap(t).withPerm(p))
-                  }
-                }
-              })
-              ((chunk1, cond1, chunk2, cond2) => {
-                if (chunk1 == chunk2) {
-                  //println(s"merging heap, same entries: chunk1 = ${chunk1}, cond1 = ${cond1}, chunk2 = ${chunk2}, cond2 = ${cond2}")
-                  Some(chunk1)
-                } else {
-                  println(s"merging heap: chunk1 = ${chunk1}, cond1 = ${cond1}, chunk2 = ${chunk2}, cond2 = ${cond2}")
-                  (chunk1, chunk2) match {
-                    case (c1: NonQuantifiedChunk, c2: NonQuantifiedChunk) => {
-                      assert(c1.snap.sort == c2.snap.sort)
-                      val t = verifier.decider.fresh("merge_2_nqc_t", c1.snap.sort)
-                      val p = verifier.decider.fresh("merge_2_nqc_p", sorts.Perm)
-                      mergePcs :+= Implies(cond1, And(Equals(t, c1.snap), Equals(p, c1.perm)))
-                      mergePcs :+= Implies(cond2, And(Equals(t, c2.snap), Equals(p, c2.perm)))
-                      val c3 = c1.withSnap(t).withPerm(p)
-                      println(s"new chunk: $c3")
-                      Some(c3)
-                    }
-                    case (c1: QuantifiedChunk, c2: QuantifiedChunk) => {
-                      assert(c1.snapshotMap.sort == c2.snapshotMap.sort)
-                      val t = verifier.decider.fresh("merge_2_qc_t", c1.snapshotMap.sort)
-                      val p = verifier.decider.fresh("merge_2_qc_p", sorts.Perm)
-                      mergePcs :+= Implies(cond1, And(Equals(t, c1.snapshotMap), Equals(p, c1.perm)))
-                      mergePcs :+= Implies(cond2, And(Equals(t, c2.snapshotMap), Equals(p, c2.perm)))
-                      val c3 = c1.withSnapshotMap(t).withPerm(p)
-                      println(s"new chunk: $c3")
-                      Some(c3)
-                    }
-                    case _ => sys.error("Chunks have to be of the same type.")
-                  }
-                }
-              }))
-            }
-            */
-
-            /*
-            val conditionalizeChunks = (h: Iterable[Chunk], cond: Term) => {
-              h map (c => {
-                c match {
-
-                  case c: GeneralChunk =>
-                    c.withPerm(Ite(cond, c.perm, NoPerm()))
-                    /* Somehow this fails more tests than the above version
-                      val p = verifier.decider.fresh("perm", sorts.Perm)
-                      mergePcs :+= Implies(cond, p === c.perm)
-                      c.withPerm(p)
-                    */
-
-                  /* Z3 error: Unknown constant t
-
-                  case c: NonQuantifiedChunk =>
-                    val t = verifier.decider.fresh(c.snap.sort)
-                    mergePcs :+= Implies(cond, t === c.snap)
-                    c.withSnap(t)
-                  case c: QuantifiedChunk =>
-                    val t = verifier.decider.fresh(c.snapshotMap.sort)
-                    mergePcs :+= Implies(cond, t === c.snapshotMap)
-                    c.withSnapshotMap(t)
-                   */
-
-                  case _ => sys.error("Chunk type not conditionalizable.")
-                }
-              })
-            }
-
-            val mergeHeap = (h1: Heap, cond1: Term, h2: Heap, cond2: Term) => {
-              val (unconditionalHeapChunks, h1HeapChunksToConditionalize) = h1.values.partition(c1 => h2.values.find(_ == c1).nonEmpty)
-              val h2HeapChunksToConditionalize = h2.values.filter(c2 => unconditionalHeapChunks.find(_ == c2).isEmpty)
-              println(s"H1TOCOND CHUNKS: $h1HeapChunksToConditionalize")
-              println(s"H2TOCOND CHUNKS: $h2HeapChunksToConditionalize")
-              val h1ConditionalizedHeapChunks = conditionalizeChunks(h1HeapChunksToConditionalize, cond1)
-              val h2ConditionalizedHeapChunks = conditionalizeChunks(h2HeapChunksToConditionalize, cond2)
-              println(s"UNCOND CHUNKS: $unconditionalHeapChunks")
-              println(s"H1COND CHUNKS: $h1ConditionalizedHeapChunks")
-              println(s"H2COND CHUNKS: $h2ConditionalizedHeapChunks")
-              Heap(unconditionalHeapChunks) + Heap(h1ConditionalizedHeapChunks) + Heap(h2ConditionalizedHeapChunks)
-            }
-            */
 
             val g3 = mergeStore(g1, g2)
+
             val h3 = mergeHeap(h1, conditions1, h2, conditions2)
-            val partiallyConsumedHeap3 = mergeHeap(
-              partiallyConsumedHeap1.getOrElse(Heap()), conditions1,
-              partiallyConsumedHeap2.getOrElse(Heap()), conditions2,
-            )
+
+            val partiallyConsumedHeap3 = (partiallyConsumedHeap1, partiallyConsumedHeap2) match {
+              case (None, None) => None
+              case (Some(pch1), None) => Some(conditionalizeHeap(pch1, conditions1))
+              case (None, Some(pch2)) => Some(conditionalizeHeap(pch2, conditions2))
+              case (Some(pch1), Some(pch2)) => Some(mergeHeap(
+                  pch1, conditions1,
+                  pch2, conditions2,
+                ))
+            }
 
             val oldHeaps3 = Map.from(mergeMaps(oldHeaps1, conditions1, oldHeaps2, conditions2)
               ((_, _) => {
@@ -472,15 +381,29 @@ object State {
                 Some(mergeHeap(heap1, cond1, heap2, cond2))
               }))
 
+            //verifier.decider.assume(mergePcs)
+
+            // TODO: InvariantContexts should most likely be the same
+            assert(invariantContexts1.length == invariantContexts2.length)
+            val invariantContexts3 = invariantContexts1
+              .zip(invariantContexts2)
+              .map({case (h1, h2) => mergeHeap(h1, conditions1, h2, conditions2)})
+
+            // TODO: Workout situations in which reserve heaps differ
+            assert(reserveHeaps1.length == reserveHeaps2.length)
+            val reserveHeaps3 = reserveHeaps1
+              .zip(reserveHeaps2)
+              .map({case (h1, h2) => mergeHeap(h1, conditions1, h2, conditions2)})
 
 
-            // TODO:
-            // val invariantContexts3 = ???
-            // val reserveHeaps3 = ???
-            // val conservedPcs3 = ???
+            assert(conservedPcs1.length == conservedPcs2.length)
+            val conservedPcs3 = conservedPcs1
+              .zip(conservedPcs1)
+              .map({case (pcs1, pcs2) => (pcs1 ++ pcs2).distinct})
 
+            //assert(conservedPcs1 == conservedPcs2)
+            //val conservedPcs3 = conservedPcs1
 
-            verifier.decider.assume(mergePcs)
 
             val s3 = s1.copy(functionRecorder = functionRecorder3,
               possibleTriggers = possibleTriggers3,
@@ -493,20 +416,16 @@ object State {
               g = g3,
               h = h3,
               oldHeaps = oldHeaps3,
-              partiallyConsumedHeap = Some(partiallyConsumedHeap3))
+              partiallyConsumedHeap = partiallyConsumedHeap3,
+              smDomainNeeded = smDomainNeeded3,
+              invariantContexts = invariantContexts3,
+              reserveHeaps = reserveHeaps3,
+              conservedPcs = conservedPcs3
+            )
 
             val s4 = stateConsolidator.consolidate(s3, verifier)
             s4
-          case _ =>
-            val err = new StringBuilder()
-            for (ix <- 0 until s1.productArity) yield {
-              val e1 = s1.productElement(ix)
-              val e2 = s2.productElement(ix)
-              if (e1 != e2) {
-                err ++= s"\n\tField index ${s1.productElementName(ix)} not equal"
-              }
-            }
-            sys.error(s"PC-aware state merging failed: unexpected mismatch between symbolic states: $err")
+          case _ => generateStateMismatchErrorMessage(s1, s2)
         }
     }
   }

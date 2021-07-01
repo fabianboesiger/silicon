@@ -210,10 +210,10 @@ object producer extends ProductionRules {
         SymbExLogger.currentLog().initializeBranching()
 
         eval(s, e0, pve, v)((s1, t0, v1) => {
-          producerJoiner.join(s1, v1)((s1, v1, QB) => {
+          producerJoiner.join(s1, v1)((s4, v4, QB) => {
             impLog.finish_cond()
             val branch_res =
-              branch(s1, t0, v1)(
+              branch(s4, t0, v4)(
                 (s2, v2) => produceR(s2, sf, a0, pve, v2)((s3, v3) => {
                   val res1 = QB(s3, v3)
                   impLog.finish_thnSubs()
@@ -231,6 +231,7 @@ object producer extends ProductionRules {
             SymbExLogger.currentLog().collapse(null, sepIdentifier)
             branch_res
           })((entries, verifier) => {
+            println("MERGE PRODUCER")
             val s2 = entries match {
               case Seq(entry) => // One branch is dead
                 entry.s
@@ -274,10 +275,10 @@ object producer extends ProductionRules {
         SymbExLogger.currentLog().initializeBranching()
         eval(s, e0, pve, v)((s1, t0, v1) => {
           // TODO: Rename s1, v1, ..., s3, v3
-          producerJoiner.join(s1, v1)((s1, v1, QB) => {
+          producerJoiner.join(s1, v1)((s4, v4, QB) => {
             gbLog.finish_cond()
             val branch_res =
-              branch(s1, t0, v1)(
+              branch(s4, t0, v4)(
                 (s2, v2) => produceR(s2, sf, a1, pve, v2)((s3, v3) => {
                   val res1 = QB(s3, v3)
                   gbLog.finish_thnSubs()

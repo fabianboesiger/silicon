@@ -178,7 +178,7 @@ object consumer extends ConsumptionRules {
      * `context.partiallyConsumedHeap`. Hence, this field must be updated every
      * time permissions have been consumed.
      */
-
+    //println(s"${Thread.currentThread.getStackTrace().map(_.getMethodName).mkString(",")}")
     v.logger.debug(s"\nCONSUME ${viper.silicon.utils.ast.sourceLineColumn(a)}: $a (${a.getClass.getSimpleName})")
     v.logger.debug(v.stateFormatter.format(s, v.decider.pcs))
     v.logger.debug("h = " + v.stateFormatter.format(h))
@@ -208,6 +208,7 @@ object consumer extends ConsumptionRules {
             SymbExLogger.currentLog().collapse(null, sepIdentifier)
             branch_res
           })((entries, verifier) => {
+            println("MERGE CONSUMER")
             val s2 = entries match {
               case Seq(entry) => // One branch is dead
                 (entry.s, entry.data)
@@ -226,6 +227,7 @@ object consumer extends ConsumptionRules {
                 sys.error(s"Unexpected join data entries: $entries")}
             s2
           })((s4, data, v4) => {
+            println("continue")
             Q(s4, data._1, data._2, v4)
           })
         })
@@ -446,7 +448,6 @@ object consumer extends ConsumptionRules {
 
       case ast.AccessPredicate(loc @ ast.PredicateAccess(eArgs, predname), ePerm)
               if s.qpPredicates.contains(Verifier.program.findPredicate(predname)) =>
-
         val predicate = Verifier.program.findPredicate(predname)
         val formalVars = s.predicateFormalVarMap(predicate)
 

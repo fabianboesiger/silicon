@@ -25,7 +25,7 @@ object Heap extends HeapFactory[ListBackedHeap] {
   def apply(chunks: Iterable[Chunk]) = new ListBackedHeap(chunks.toVector)
 }
 
-final class ListBackedHeap private[state] (chunks: Vector[Chunk])
+final case class ListBackedHeap private[state] (chunks: Vector[Chunk])
     extends Heap {
 
   def values = chunks
