@@ -12,12 +12,11 @@ import viper.silicon.common.Mergeable
 import viper.silicon.common.collections.immutable.InsertionOrderedSet
 import viper.silicon.decider.RecordedPathConditions
 import viper.silicon.interfaces.state.{Chunk, GeneralChunk}
-import viper.silicon.rules.{stateConsolidator}
+import viper.silicon.rules.stateConsolidator
 import viper.silicon.state.State.OldHeaps
-import viper.silicon.state.terms.{And, Equals, Implies, Ite, NoPerm, Term, Var}
+import viper.silicon.state.terms.{And, Equals, Implies, Ite, NoPerm, Term, Var, sorts}
 import viper.silicon.supporters.functions.{FunctionRecorder, NoopFunctionRecorder}
 import viper.silicon.{Map, Stack}
-
 import viper.silicon.verifier.Verifier
 
 final case class State(g: Store = Store(),
@@ -236,17 +235,18 @@ object State {
   }
 
 
-  private def conditionalizeChunks(h: Iterable[Chunk], cond: Term): Iterable[Chunk] = {
+  private def conditionalizeChunks(h: Iterable[Chunk], cond: Term, v: Verifier): Iterable[Chunk] = {
     h map (c => {
       c match {
 
         case c: GeneralChunk =>
           c.withPerm(Ite(cond, c.perm, NoPerm()))
-        /* Somehow this fails more tests than the above version
-          val p = verifier.decider.fresh("perm", sorts.Perm)
-          mergePcs :+= Implies(cond, p === c.perm)
+          //Somehow this fails more tests than the above version
+          /*
+          val p = v.decider.fresh("perm", sorts.Perm)
+          v.decider.assume(Implies(cond, p === c.perm))
           c.withPerm(p)
-        */
+          */
 
         /* Z3 error: Unknown constant t
 
@@ -265,15 +265,15 @@ object State {
     })
   }
 
-  private def conditionalizeHeap(h: Heap, cond: Term): Heap = {
-    Heap(conditionalizeChunks(h.values, cond))
+  private def conditionalizeHeap(h: Heap, cond: Term, v: Verifier): Heap = {
+    Heap(conditionalizeChunks(h.values, cond, v))
   }
 
-  def mergeHeap(h1: Heap, cond1: Term, h2: Heap, cond2: Term): Heap = {
+  def mergeHeap(h1: Heap, cond1: Term, h2: Heap, cond2: Term, v: Verifier): Heap = {
     val (unconditionalHeapChunks, h1HeapChunksToConditionalize) = h1.values.partition(c1 => h2.values.exists(_ == c1))
     val h2HeapChunksToConditionalize = h2.values.filter(c2 => !unconditionalHeapChunks.exists(_ == c2))
-    val h1ConditionalizedHeapChunks = conditionalizeChunks(h1HeapChunksToConditionalize, cond1)
-    val h2ConditionalizedHeapChunks = conditionalizeChunks(h2HeapChunksToConditionalize, cond2)
+    val h1ConditionalizedHeapChunks = conditionalizeChunks(h1HeapChunksToConditionalize, cond1, v)
+    val h2ConditionalizedHeapChunks = conditionalizeChunks(h2HeapChunksToConditionalize, cond2, v)
     Heap(unconditionalHeapChunks) + Heap(h1ConditionalizedHeapChunks) + Heap(h2ConditionalizedHeapChunks)
   }
 
@@ -361,15 +361,16 @@ object State {
 
             val g3 = mergeStore(g1, g2)
 
-            val h3 = mergeHeap(h1, conditions1, h2, conditions2)
+            val h3 = mergeHeap(h1, conditions1, h2, conditions2, verifier)
 
             val partiallyConsumedHeap3 = (partiallyConsumedHeap1, partiallyConsumedHeap2) match {
               case (None, None) => None
-              case (Some(pch1), None) => Some(conditionalizeHeap(pch1, conditions1))
-              case (None, Some(pch2)) => Some(conditionalizeHeap(pch2, conditions2))
+              case (Some(pch1), None) => Some(conditionalizeHeap(pch1, conditions1, verifier))
+              case (None, Some(pch2)) => Some(conditionalizeHeap(pch2, conditions2, verifier))
               case (Some(pch1), Some(pch2)) => Some(mergeHeap(
                   pch1, conditions1,
                   pch2, conditions2,
+                  verifier
                 ))
             }
 
@@ -378,7 +379,7 @@ object State {
                 None
               })
               ((heap1, cond1, heap2, cond2) => {
-                Some(mergeHeap(heap1, cond1, heap2, cond2))
+                Some(mergeHeap(heap1, cond1, heap2, cond2, verifier))
               }))
 
             //verifier.decider.assume(mergePcs)
@@ -387,13 +388,13 @@ object State {
             assert(invariantContexts1.length == invariantContexts2.length)
             val invariantContexts3 = invariantContexts1
               .zip(invariantContexts2)
-              .map({case (h1, h2) => mergeHeap(h1, conditions1, h2, conditions2)})
+              .map({case (h1, h2) => mergeHeap(h1, conditions1, h2, conditions2, verifier)})
 
             // TODO: Workout situations in which reserve heaps differ
             assert(reserveHeaps1.length == reserveHeaps2.length)
             val reserveHeaps3 = reserveHeaps1
               .zip(reserveHeaps2)
-              .map({case (h1, h2) => mergeHeap(h1, conditions1, h2, conditions2)})
+              .map({case (h1, h2) => mergeHeap(h1, conditions1, h2, conditions2, verifier)})
 
 
             assert(conservedPcs1.length == conservedPcs2.length)

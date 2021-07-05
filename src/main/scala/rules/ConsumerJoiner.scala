@@ -35,11 +35,9 @@ object consumerJoiner {
 
       block(s2, v1, (s3, data, v2) => {
         entries :+= ConsumerJoinDataEntry(s3, data, v2.decider.pcs.after(preMark))
-        println("done")
         Success()
       })
     }) && {
-      println("join entries")
       if (entries.isEmpty) {
         /* No block data was collected, which we interpret as all branches through
          * the block being infeasible. In turn, we assume that the overall verification path

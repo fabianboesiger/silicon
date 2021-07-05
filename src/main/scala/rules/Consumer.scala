@@ -217,7 +217,8 @@ object consumer extends ConsumptionRules {
                 val mergedData = (
                   State.mergeHeap(
                     entry1.data._1, And(entry1.pathConditions.branchConditions),
-                    entry2.data._1, And(entry2.pathConditions.branchConditions)
+                    entry2.data._1, And(entry2.pathConditions.branchConditions),
+                    verifier
                   ),
                   // Asume that entry1.pcs is inverse of entry2.pcs
                   Ite(And(entry1.pathConditions.branchConditions), entry1.data._2, entry2.data._2)
@@ -282,7 +283,8 @@ object consumer extends ConsumptionRules {
                 val mergedData = (
                   State.mergeHeap(
                     entry1.data._1, And(entry1.pathConditions.branchConditions),
-                    entry2.data._1, And(entry2.pathConditions.branchConditions)
+                    entry2.data._1, And(entry2.pathConditions.branchConditions),
+                    verifier
                   ),
                   // Asume that entry1.pcs is inverse of entry2.pcs
                   Ite(And(entry1.pathConditions.branchConditions), entry1.data._2, entry2.data._2)
@@ -420,7 +422,6 @@ object consumer extends ConsumptionRules {
 
       case ast.AccessPredicate(loc @ ast.FieldAccess(eRcvr, field), ePerm)
               if s.qpFields.contains(field) =>
-
         eval(s, eRcvr, pve, v)((s1, tRcvr, v1) =>
           eval(s1, ePerm, pve, v1)((s2, tPerm, v2) => {
             val (relevantChunks, _) =
