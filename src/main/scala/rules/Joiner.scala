@@ -18,7 +18,7 @@ trait JoiningRules extends SymbolicExecutionRules {
                  (block: (State, Verifier, (State, D, Verifier) => VerificationResult) => VerificationResult)
                  (merge: Seq[JoinDataEntry[D]] => (State, JD))
                  (Q: (State, JD, Verifier) => VerificationResult)
-  : VerificationResult
+                 : VerificationResult
 }
 
 object joiner extends JoiningRules {
@@ -26,7 +26,7 @@ object joiner extends JoiningRules {
                  (block: (State, Verifier, (State, D, Verifier) => VerificationResult) => VerificationResult)
                  (merge: Seq[JoinDataEntry[D]] => (State, JD))
                  (Q: (State, JD, Verifier) => VerificationResult)
-  : VerificationResult = {
+                 : VerificationResult = {
 
     var entries: Seq[JoinDataEntry[D]] = Vector.empty
 
@@ -41,13 +41,12 @@ object joiner extends JoiningRules {
          * state consolidations) to their initial values.
          */
         val s4 = s3.copy(g = s1.g,
-          h = s1.h,
-          oldHeaps = s1.oldHeaps,
-          underJoin = s1.underJoin,
-          // TODO: Evaluation should not affect partiallyConsumedHeap, probably
-          ssCache = s1.ssCache,
-          partiallyConsumedHeap = s1.partiallyConsumedHeap
-        )
+                         h = s1.h,
+                         oldHeaps = s1.oldHeaps,
+                         underJoin = s1.underJoin,
+                         // TODO: Evaluation should not affect partiallyConsumedHeap, probably
+                         ssCache = s1.ssCache,
+                         partiallyConsumedHeap = s1.partiallyConsumedHeap)
         entries :+= JoinDataEntry(s4, data, v2.decider.pcs.after(preMark))
         Success()
       })

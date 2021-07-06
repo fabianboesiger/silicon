@@ -11,8 +11,8 @@ import scala.collection.immutable.ArraySeq
 import scala.util.matching.Regex
 import scala.util.Properties._
 import org.rogach.scallop._
+import viper.silicon.Config.StateConsolidationMode.StateConsolidationMode
 import viper.silver.frontend.SilFrontendConfig
-import viper.silver.ast.utility.LanguageFeature
 
 class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
   import Config._
@@ -206,7 +206,7 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
   val timeout: ScallopOption[Int] = opt[Int]("timeout",
     descr = ( "Time out after approx. n seconds. The timeout is for the whole verification, "
             + "not per method or proof obligation (default: 0, i.e. no timeout)."),
-    default = Some(180),
+    default = Some(0),
     noshort = true
   )
 
@@ -457,7 +457,7 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
   val enableMoreCompleteExhale: ScallopOption[Boolean] = opt[Boolean]("enableMoreCompleteExhale",
     descr = "Enable a more complete exhale version.",
     default = Some(false),
-    noshort = false
+    noshort = true
   )
 
   val moreJoins: ScallopOption[Boolean] = opt[Boolean]("moreJoins",
@@ -466,11 +466,11 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
     noshort = true
   )
 
-  val disableMostStateConsolidations: ScallopOption[Boolean] = opt[Boolean]("disableMostStateConsolidations",
-    descr = "Disable state consolidations, except on-retry and single-merge.",
-    default = Some(false),
+  val stateConsolidationMode: ScallopOption[StateConsolidationMode] = opt[StateConsolidationMode]("stateConsolidationMode",
+    descr = s"One of the following modes:\n${StateConsolidationMode.helpText}",
+    default = Some(StateConsolidationMode.Default),
     noshort = true
-  )
+  )(singleArgConverter(mode => StateConsolidationMode(mode.toInt)))
 
   val numberOfParallelVerifiers: ScallopOption[Int] = opt[Int]("numberOfParallelVerifiers",
     descr = (  "Number of verifiers run in parallel. This number plus one is the number of provers "
@@ -531,6 +531,14 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
     noshort = true
   )
 
+  val conditionalizePermissions: ScallopOption[Boolean] = opt[Boolean]("conditionalizePermissions",
+    descr = "Potentially reduces the number of symbolic execution paths, by conditionalising " + 
+            "permission expressions. E.g. rewrite \"b ==> acc(x.f, p)\" to \"acc(x.f, b ? p : none)\"." +
+            "This is an experimental feature; report problems if you observe any.",
+    default = Some(false),
+    noshort = true
+  )
+
   /* Option validation (trailing file argument is validated by parent class) */
 
   validateOpt(timeout) {
@@ -586,4 +594,36 @@ object Config {
   }
 
   case class Z3StateSaturationTimeout(timeout: Int, comment: String)
+
+  object StateConsolidationMode extends Enumeration {
+    type StateConsolidationMode = Value
+    val Minimal, Default, Retrying, MinimalRetrying, MoreCompleteExhale = Value
+
+    private[Config] final def helpText: String = {
+      s"""  ${Minimal.id}: Minimal work, many incompletenesses
+         |  ${Default.id}: Most work, fewest incompletenesses
+         |  ${Retrying.id}: Similar to ${Default.id}, but less eager
+         |  ${MinimalRetrying.id}: Less eager and less complete than ${Default.id}
+         |  ${MoreCompleteExhale.id}: Intended for use with --moreCompleteExhale
+         |""".stripMargin
+    }
+
+//    private val converter: ValueConverter[StateConsolidationMode] = new ValueConverter[StateConsolidationMode] {
+//      Try {
+//
+//      }
+//
+//      val pushPopRegex: Regex = """(?i)(pp)""".r
+//      val softConstraintsRegex: Regex = """(?i)(sc)""".r
+//
+//      def parse(s: List[(String, List[String])]): Either[String, Option[AssertionMode]] = s match {
+//        case (_, pushPopRegex(_) :: Nil) :: Nil => Right(Some(AssertionMode.PushPop))
+//        case (_, softConstraintsRegex(_) :: Nil) :: Nil => Right(Some(AssertionMode.SoftConstraints))
+//        case Nil => Right(None)
+//        case _ => Left(s"unexpected arguments")
+//      }
+//
+//      val argType: ArgType.V = org.rogach.scallop.ArgType.SINGLE
+//    }
+  }
 }

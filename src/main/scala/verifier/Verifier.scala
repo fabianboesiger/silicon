@@ -7,25 +7,24 @@
 package viper.silicon.verifier
 
 import java.nio.file.Path
-
 import com.typesafe.scalalogging.Logger
-import viper.silver.ast
-import viper.silicon.{Config, Map}
 import viper.silicon.decider.Decider
 import viper.silicon.reporting.StateFormatter
-import viper.silicon.state.{IdentifierFactory, SymbolConverter}
 import viper.silicon.state.terms.{AxiomRewriter, TriggerGenerator}
-import viper.silicon.supporters.{PredicateData, QuantifierSupporter, SnapshotSupporter}
+import viper.silicon.rules.StateConsolidationRules
+import viper.silicon.state.{IdentifierFactory, SymbolConverter}
 import viper.silicon.supporters.functions.FunctionData
+import viper.silicon.supporters.{PredicateData, QuantifierSupporter, SnapshotSupporter}
 import viper.silicon.utils.Counter
-import viper.silver.plugin.PluginAwareReporter
-import viper.silver.ast.LabelledOld
+import viper.silicon.{Config, Map}
+import viper.silver.ast
+import viper.silver.reporter.Reporter
 
 trait Verifier {
   def uniqueId: String
 
   def logger: Logger
-  def reporter: PluginAwareReporter
+  def reporter: Reporter
   def counter(id: AnyRef): Counter
 
   def decider: Decider
@@ -36,6 +35,7 @@ trait Verifier {
   def axiomRewriter: AxiomRewriter
   def quantifierSupporter: QuantifierSupporter
   def snapshotSupporter: SnapshotSupporter
+  def stateConsolidator: StateConsolidationRules
 
   def verificationPoolManager: VerificationPoolManager
 }
@@ -44,7 +44,7 @@ trait Verifier {
    TODO: Add a description to each var that explain when it is expected to be set */
 object Verifier {
   val PRE_STATE_LABEL = "old"
-  val MAGIC_WAND_LHS_STATE_LABEL = LabelledOld.LhsOldLabel
+  val MAGIC_WAND_LHS_STATE_LABEL = ast.LabelledOld.LhsOldLabel
 
   private var _config: Config = _
   def config: Config = _config

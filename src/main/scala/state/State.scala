@@ -12,9 +12,8 @@ import viper.silicon.common.Mergeable
 import viper.silicon.common.collections.immutable.InsertionOrderedSet
 import viper.silicon.decider.RecordedPathConditions
 import viper.silicon.interfaces.state.{Chunk, GeneralChunk}
-import viper.silicon.rules.stateConsolidator
 import viper.silicon.state.State.OldHeaps
-import viper.silicon.state.terms.{And, Equals, Implies, Ite, NoPerm, Term, Var, sorts}
+import viper.silicon.state.terms.{And, Ite, NoPerm, Term, Var}
 import viper.silicon.supporters.functions.{FunctionRecorder, NoopFunctionRecorder}
 import viper.silicon.{Map, Stack}
 import viper.silicon.verifier.Verifier
@@ -424,7 +423,7 @@ object State {
               conservedPcs = conservedPcs3
             )
 
-            val s4 = stateConsolidator.consolidate(s3, verifier)
+            val s4 = verifier.stateConsolidator.consolidate(s3, verifier)
             s4
           case _ => generateStateMismatchErrorMessage(s1, s2)
         }

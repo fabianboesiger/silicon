@@ -83,8 +83,8 @@ domain PyType {
   function PMultiset_arg(typ: PyType, index: Int): PyType
   
   unique function slice(): PyType
-  
-  unique function _range(): PyType
+
+  unique function py_range(): PyType
   
   unique function Iterator_basic(): PyType
   
@@ -279,9 +279,9 @@ domain PyType {
   axiom subtype_slice {
     extends_(slice(), object()) && get_basic(slice()) == slice()
   }
-  
-  axiom subtype__range {
-    extends_(_range(), object()) && get_basic(_range()) == _range()
+
+  axiom subtype_py_range {
+    extends_(py_range(), object()) && get_basic(py_range()) == py_range()
   }
   
   axiom subtype_Iterator {
