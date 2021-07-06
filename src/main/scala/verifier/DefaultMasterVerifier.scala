@@ -28,7 +28,6 @@ import viper.silver.ast.utility.rewriter.Traverse
 import viper.silver.cfg.silver.SilverCfg
 import viper.silver.plugin.PluginAwareReporter
 import viper.silver.reporter.{ConfigurationConfirmation, VerificationResultMessage}
-import viper.silver.ast.utility.LanguageFeature
 
 /* TODO: Extract a suitable MasterVerifier interface, probably including
  *         - def verificationPoolManager: VerificationPoolManager)
@@ -150,16 +149,6 @@ class DefaultMasterVerifier(config: Config, override val reporter: PluginAwareRe
     }
 
     Verifier.program = program
-
-    // Check language features support
-    for (lf <- LanguageFeature.values) {
-      if (!config.supportsLanguageFeature(lf)) {
-        val unsupportedNodes = lf.isUsedBy(program)
-        if (unsupportedNodes.nonEmpty) {
-          println(s"WARNING: $lf used by program ${Verifier.inputFile.getOrElse("<unknown>")}")
-        }
-      }
-    }
 
     predSnapGenerator.setup(program) // TODO: Why did Nadja put this here?
 

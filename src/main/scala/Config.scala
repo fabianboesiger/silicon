@@ -466,25 +466,6 @@ class Config(args: Seq[String]) extends SilFrontendConfig(args, "Silicon") {
     noshort = true
   )
 
-  private val rawUnsupportedLanguageFeatures: ScallopOption[String] = opt[String]("unsupportedLanguageFeatures",
-    descr = "Reject programs that make use of certain language features (MW, QP, QPMW, QPP, QPF)",
-    default = Some("MW,QP,QPMW,QPP,QPF,MWFUN"),
-    noshort = true
-  )
-
-  lazy val unsupportedLanguageFeatures : Seq[LanguageFeature.LanguageFeature] = {
-    rawUnsupportedLanguageFeatures().split(",").map(_.trim).collect({
-      case "MW" => LanguageFeature.MagicWands
-      case "QP" => LanguageFeature.QuantifiedPermissions
-      case "QPMW" => LanguageFeature.QuantifiedMagicWands
-      case "QPP" => LanguageFeature.QuantifiedPredicates
-      case "QPF" => LanguageFeature.QuantifiedFields
-      case "MWFUN" => LanguageFeature.MagicWandFunction
-    })
-  }
-
-  def supportsLanguageFeature(lf: LanguageFeature.LanguageFeature) : Boolean = ! unsupportedLanguageFeatures.contains(lf)
-
   val disableMostStateConsolidations: ScallopOption[Boolean] = opt[Boolean]("disableMostStateConsolidations",
     descr = "Disable state consolidations, except on-retry and single-merge.",
     default = Some(false),
